@@ -16,12 +16,6 @@ module.exports = (sequelize, DataTypes) => {
         as: "provider",
       });
 
-      // Relación con productos
-      Wallet.belongsTo(models.ProductItem, {
-        foreignKey: "productItemId",
-        as: "productItem",
-      });
-
       // Admin que aprobó la operación
       Wallet.belongsTo(models.Admins, {
         foreignKey: "adminId",
@@ -58,15 +52,15 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
       },
       quantity: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
-        validate: {
-          min: 0.01,
-        },
       },
       description: {
         type: DataTypes.STRING,
         allowNull: false,
+      },
+      purchasingGroupCode: {
+        type: DataTypes.STRING,
       },
       operationDate: {
         type: DataTypes.DATE,
@@ -76,7 +70,6 @@ module.exports = (sequelize, DataTypes) => {
       operationCode: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,
         field: "operation_code",
       },
       userId: {
@@ -86,6 +79,8 @@ module.exports = (sequelize, DataTypes) => {
           model: "users",
           key: "id",
         },
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
         field: "user_id",
       },
       providerId: {
@@ -95,16 +90,9 @@ module.exports = (sequelize, DataTypes) => {
           model: "providers",
           key: "id",
         },
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
         field: "provider_id",
-      },
-      productItemId: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        references: {
-          model: "product_items",
-          key: "id",
-        },
-        field: "product_item_id",
       },
       adminId: {
         type: DataTypes.INTEGER,
@@ -113,14 +101,25 @@ module.exports = (sequelize, DataTypes) => {
           model: "admins",
           key: "id",
         },
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
         field: "admin_id",
       },
       status: {
         type: DataTypes.ENUM("pending", "accepted", "rejected"),
         defaultValue: "pending",
       },
+      note: {
+        type: DataTypes.TEXT,
+      },
       operationType: {
-        type: DataTypes.ENUM("recharge", "purchase", "refund"),
+        type: DataTypes.ENUM(
+          "recharge",
+          "purchase",
+          "refund",
+          "earning",
+          "deduct"
+        ),
         allowNull: false,
         field: "operation_type",
       },

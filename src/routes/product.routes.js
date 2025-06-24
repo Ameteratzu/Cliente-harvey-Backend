@@ -24,7 +24,7 @@ const productRouter = express.Router();
 productRouter.get(
   "/",
   verifySession,
-  checkRole("admin", "provider", "user"),
+  checkRole("admin", "provider"),
   getAllProducts
 );
 productRouter.post(
@@ -35,7 +35,12 @@ productRouter.post(
   createProduct
 );
 
-// editar
+// provider
+// TODO: edita su producto
+/* elimina su producto */
+
+// sistema de valoraciones, puntos y comentarios
+// endpoint para edvolver los productos mas vendidos
 
 productRouter.post(
   "/publish/:id",

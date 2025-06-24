@@ -6,11 +6,12 @@ const walletService = new WalletService();
 // RECARGAS
 module.exports.balanceRecharge = catchAsync(async (req, res) => {
   const { quantity } = req.body;
-  const { id: userId } = req.user;
+  const { id, role } = req.user;
 
   const recharge = await walletService.createRecharge({
     quantity,
-    userId,
+    id,
+    role,
   });
 
   res.status(201).json({
@@ -53,25 +54,6 @@ module.exports.rejectRecharge = catchAsync(async (req, res) => {
   });
 });
 
-// COMPRAS
-module.exports.makePurchase = catchAsync(async (req, res) => {
-  const { quantity, description, providerId, productItemId } = req.body;
-  const { id: userId } = req.user;
-
-  const purchase = await walletService.createPurchase({
-    quantity,
-    description,
-    userId,
-    providerId,
-    productItemId,
-  });
-
-  res.status(201).json({
-    message: "Compra realizada exitosamente",
-    data: purchase,
-  });
-});
-
 // REEMBOLSOS
 module.exports.createRefund = catchAsync(async (req, res) => {
   const { quantity, description, userId, providerId, productItemId, adminId } =
@@ -99,10 +81,10 @@ module.exports.createRefund = catchAsync(async (req, res) => {
 });
 
 // CONSULTAS
-module.exports.getTotalBalance = catchAsync(async (req, res) => {
-  const { userId } = req.params;
+module.exports.getMyBalance = catchAsync(async (req, res) => {
+  const { id: userId, role: userType } = req.user;
 
-  const balance = await walletService.getTotalBalance(userId);
+  const balance = await walletService.getTotalBalance({ userId, userType });
 
   res.status(200).json({
     message: "Saldo obtenido exitosamente",
@@ -113,11 +95,51 @@ module.exports.getTotalBalance = catchAsync(async (req, res) => {
   });
 });
 
-module.exports.getAllMovements = catchAsync(async (req, res) => {
+module.exports.getUserBalanceById = catchAsync(async (req, res) => {
+  const { userId } = req.params;
+  const { type: userType } = req.query;
+
+  if (!["user", "provider"].includes(type)) {
+    return res.status(400).json({
+      message: "Tipo de usuario no válido. Debe ser 'user' o 'provider'",
+    });
+  }
+
+  const balance = await walletService.getTotalBalance({
+    userId,
+    userType,
+  });
+
+  res.status(200).json({
+    message: "Saldo obtenido exitosamente",
+    data: {
+      userId: parseInt(userId),
+      totalBalance: balance,
+    },
+  });
+});
+
+module.exports.getMovements = catchAsync(async (req, res) => {
   const { userId } = req.params;
   const { page, limit, operationType } = req.query;
 
-  const movements = await walletService.getAllMovements(userId, {
+  const movements = await walletService.getMovements(userId, {
+    page: parseInt(page) || 1,
+    limit: parseInt(limit) || 10,
+    operationType,
+  });
+
+  res.status(200).json({
+    message: "Movimientos obtenidos exitosamente",
+    data: movements,
+  });
+});
+
+module.exports.getUserMovements = catchAsync(async (req, res) => {
+  const { id: userId } = req.user;
+  const { page, limit, operationType } = req.query;
+
+  const movements = await walletService.getMovements(userId, {
     page: parseInt(page) || 1,
     limit: parseInt(limit) || 10,
     operationType,
@@ -162,5 +184,14 @@ module.exports.getProviderSales = catchAsync(async (req, res) => {
   res.status(200).json({
     message: "Ventas obtenidas exitosamente",
     data: sales,
+  });
+});
+
+module.exports.getAllMovementsAllUsers = catchAsync(async (req, res) => {
+  const movements = await walletService.getAllMovementsAllUsers();
+
+  res.status(200).json({
+    message: "Movimientos obtenidos exitosamente",
+    data: movements,
   });
 });

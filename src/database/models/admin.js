@@ -2,11 +2,6 @@
 const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
   class Admin extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of DataTypes lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
     static associate(models) {
       // define association here
     }
@@ -38,24 +33,18 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         unique: true,
       },
-      confirmed: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
       role: {
         type: DataTypes.STRING,
         allowNull: false,
       },
-      codeUser: {
-        type: DataTypes.STRING,
+      status: {
+        type: DataTypes.ENUM("active", "blocked", "pending_verification"),
         allowNull: false,
-        unique: true,
-        field: "code_user",
+        defaultValue: "pending_verification",
       },
-      referralCode: {
-        type: DataTypes.STRING,
-        field: "referral_code",
+      lockedUntil: {
+        type: DataTypes.DATE,
+        field: "locked_until",
       },
       createdAt: {
         allowNull: false,

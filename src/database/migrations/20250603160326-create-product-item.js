@@ -2,6 +2,9 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    // Drop existing enum type if it exists to avoid conflicts
+    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_product_items_status" CASCADE;');
+    
     await queryInterface.createTable("product_items", {
       id: {
         allowNull: false,
@@ -35,14 +38,15 @@ module.exports = {
         type: Sequelize.STRING,
       },
       status: {
-        // active, inactive
-        type: Sequelize.STRING,
-        defaultValue: "inactive",
-      },
-      isPublished: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false,
-        field: "is_published",
+        type: Sequelize.ENUM(
+          "published",
+          "unpublished",
+          "inactive",
+          "reserved",
+          "purchased"
+        ),
+        allowNull: false,
+        defaultValue: "published",
       },
       providerId: {
         type: Sequelize.INTEGER,

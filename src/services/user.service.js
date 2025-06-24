@@ -1,3 +1,4 @@
+const AppError = require("../utils/appError.js");
 const db = require("./../database/models/index.js");
 
 class UserService {
@@ -6,7 +7,16 @@ class UserService {
   }
 
   async getUserById(id) {
-    return await db.Users.findOne({ where: { id } });
+    const user = await db.Users.findOne({
+      where: { id },
+      attributes: ["username", "email", "telephone", "status", "role"],
+    });
+
+    if (!user) {
+      throw new AppError("Usuario no encontrado", 404);
+    }
+
+    return user;
   }
 
   async createUser(userData) {
@@ -19,6 +29,13 @@ class UserService {
       throw new Error("Usuario no encontrado");
     }
     return user;
+  }
+
+  async editUser(userData) {
+    const { id, ...rest } = userData;
+    await this.getUserById(id);
+
+    return await db.Users.update(rest, { where: { id } });
   }
 }
 

@@ -1,5 +1,6 @@
 const crypto = require("node:crypto");
 const db = require("../database/models/index.js");
+const AppError = require("../utils/appError.js");
 const { hashPassword, comparePassword } = require("../utils/bcrypt");
 const { sendEmailCodeRecoverPassword } = require("../utils/sendEmail");
 const { generateUserCode, tokenSing } = require("../utils/token");
@@ -15,20 +16,21 @@ class AuthService {
     return models[userType];
   }
 
-  async register(userData, userType) {
+  async register({ userData, userType }) {
     const Model = this.getModel(userType);
-    const { password, codeRegister, ...rest } = userData;
+    const { password, codeRegister, codeReferral, ...rest } = userData;
 
     const findCodeRegister = await db.RegistrationCodes.findOne({
       where: { code: codeRegister },
     });
 
     if (!findCodeRegister || findCodeRegister.roleType !== userType) {
-      throw new Error("Código de registro no válido");
+      throw new AppError("Código de registro no válido", 400);
     }
 
-    const hashedPassword = await hashPassword(password);
     const codeUser = await generateUserCode();
+
+    const hashedPassword = await hashPassword(password);
 
     const newUser = await Model.create({
       ...rest,
@@ -36,6 +38,22 @@ class AuthService {
       codeUser,
       role: userType,
     });
+
+    if (codeReferral) {
+      const findCodeReferral = await db.Users.findOne({
+        where: { codeUser: codeReferral },
+      });
+
+      // TODO: SI EL CODIGO DE REFERIDO ES INVALIDO, NO DEBERIA CREAR UN USUARIO
+      if (!findCodeReferral) {
+        throw new AppError("Código de referido no valido", 400);
+      }
+
+      await db.Referrals.create({
+        userId: findCodeReferral.id,
+        referralUserId: newUser.id,
+      });
+    }
 
     await db.RegistrationCodes.destroy({ where: { code: codeRegister } });
 
@@ -50,21 +68,30 @@ class AuthService {
     return newUser;
   }
 
-  async login(email, password, userType, req) {
+  async login({ email, password, userType, req }) {
     const Model = this.getModel(userType);
 
-    const user = await Model.findOne({ where: { email } });
+    const user = await Model.findOne({
+      where: { email },
+    });
     if (!user) {
-      throw new Error("Usuario no encontrado");
+      throw new AppError("Usuario no encontrado", 404);
     }
 
-    if (!user.confirmed) {
-      throw new Error("Cuenta no confirmada, verifique su correo");
+    if (user.status === "pending_verification") {
+      throw new AppError("Cuenta no confirmada, revisa tu correo", 400);
+    }
+
+    if (user.status === "blocked") {
+      throw new AppError(
+        "Cuenta bloqueada, contacte con el administrador",
+        401
+      );
     }
 
     const isValidPassword = await comparePassword(password, user.password);
     if (!isValidPassword) {
-      throw new Error("Contraseña incorrecta");
+      throw new AppError("Contraseña incorrecta", 400);
     }
 
     const token = await tokenSing(user);
@@ -77,10 +104,18 @@ class AuthService {
       ipAddress: req.ip,
     });
 
-    return { user, token };
+    const userPayload = {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      codeUser: user.codeUser,
+    };
+
+    return { user: userPayload, token };
   }
 
-  async logout(userId, userType, res) {
+  async logout({ userId, userType, res }) {
     // invalidando todas las sesiones
     await db.UserSession.update(
       { isValid: false },
@@ -91,17 +126,17 @@ class AuthService {
     return { message: "Sessión cerrada con éxito" };
   }
 
-  async confirmAccount(code, userType) {
+  async confirmAccount({ code, userType }) {
     const Model = this.getModel(userType);
 
     const emailCode = await db.EmailCode.findOne({ where: { code } });
     if (!emailCode) {
-      throw new Error("Código de verificación no válido");
+      throw new AppError("Código de verificación no válido", 400);
     }
 
     const user = await Model.findOne({ where: { id: emailCode.targetId } });
     if (!user) {
-      throw new Error("Usuario no encontrado");
+      throw new AppError("Usuario no encontrado", 404);
     }
 
     await db.EmailCode.destroy({ where: { id: emailCode.id } });
@@ -113,12 +148,13 @@ class AuthService {
     };
   }
 
-  async sendEmailCodeRecover(email, userType) {
+  async sendEmailCodeRecover({ email, userType }) {
     const code = crypto.randomBytes(32).toString("hex");
     const user = await this.findByEmail(email, userType);
     if (!user.confirmed) {
-      throw new Error(
-        "Cuenta no confirmada, verifique su correo primero para cambiar su contraseña"
+      throw new AppError(
+        "Cuenta no confirmada, verifique su correo primero para cambiar su contraseña",
+        400
       );
     }
 
@@ -135,24 +171,27 @@ class AuthService {
     };
   }
 
-  async changePassword(code, password, userType) {
+  async changePassword({ code, password, userType }) {
     const Model = this.getModel(userType);
 
     const emailCode = await db.EmailCode.findOne({ where: { code } });
     if (!emailCode) {
-      throw new Error("Código de verificación no válido");
+      throw new AppError("Código de verificación no válido", 400);
     }
 
     const user = await Model.findOne({ where: { id: emailCode.targetId } });
     if (!user) {
-      throw new Error("Usuario no encontrado");
+      throw new AppError("Usuario no encontrado", 404);
     }
 
     await db.EmailCode.destroy({ where: { id: emailCode.id } });
     const equalPassword = await comparePassword(password, user.password);
 
     if (equalPassword) {
-      throw new Error("La contraseña no puede ser la misma que la anterior");
+      throw new AppError(
+        "La contraseña no puede ser la misma que la anterior",
+        400
+      );
     }
 
     const hashedPassword = await hashPassword(password);
@@ -168,7 +207,7 @@ class AuthService {
     );
 
     return {
-      message: "Contraseña cambiada con éxito",
+      message: "Contraseña cambiada con éxito",
     };
   }
 

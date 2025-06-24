@@ -3,14 +3,14 @@ const {
   register,
   login,
   confirmAccount,
-  getAllAdmins,
+  getAllUserTypes,
   getAdminById,
   sendEmailCodeRecover,
   changePassword,
   editAdmin,
-  deleteAdmin,
-  getProfile,
+  deleteProfile,
   logout,
+  blockAccount,
 } = require("../controller/admin.controller");
 const {
   validationSendEmailCodeRecover,
@@ -22,6 +22,7 @@ const {
 } = require("../middlewares/validateInputErrors");
 const setUserType = require("../middlewares/setUserType");
 const { verifySession } = require("../middlewares/verifySession");
+const checkRole = require("../middlewares/chekRole");
 
 const adminRouter = express.Router();
 
@@ -47,12 +48,16 @@ adminRouter.patch(
   changePassword
 );
 
-adminRouter.get("/", getAllAdmins);
-adminRouter.get("/profile", setUserType, verifySession, getProfile);
+// obtener todos los usuarios, proveedores y admins
+adminRouter.get("/", verifySession, checkRole("admin"), getAllUserTypes);
+// TODO: bloquear automaticamente cuando no tenga movimientos ni compras
 
 adminRouter.get("/:id", getAdminById);
 adminRouter.put("/:id", validationEditUser, editAdmin);
 
-adminRouter.delete("/:id", deleteAdmin);
+// bloquear cuentas
+adminRouter.put("/:id/block", verifySession, checkRole("admin"), blockAccount);
+// eliminar perfiles
+adminRouter.delete("/:id", verifySession, checkRole("admin"), deleteProfile);
 
 module.exports = adminRouter;

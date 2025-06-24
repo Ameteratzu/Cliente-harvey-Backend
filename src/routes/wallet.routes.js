@@ -4,24 +4,28 @@ const checkRole = require("../middlewares/chekRole");
 const {
   balanceRecharge,
   approveRecharge,
-  makePurchase,
   createRefund,
-  getTotalBalance,
-  getAllMovements,
+  getMyBalance,
+  getUserBalanceById,
+  getMovements,
   rejectRecharge,
   getRecharges,
   getProviderSales,
   getPurchases,
+  getUserMovements,
 } = require("../controller/wallet.controller");
 
 const walletRouter = express.Router();
 
+// RECARGAR SALDO - user y provider
 walletRouter.post(
   "/recharge",
   verifySession,
-  checkRole("user"),
+  checkRole("user", "provider"),
   balanceRecharge
 );
+
+// RECHAZAR SOLICITUD DE RECARGA - admin
 walletRouter.put(
   "/reject-recharge/:walletId",
   verifySession,
@@ -29,6 +33,7 @@ walletRouter.put(
   rejectRecharge
 );
 
+// OBTENER TODAS LAS SOLICITUDES DE RECARGA - admin
 walletRouter.get(
   "/recharges/:userId",
   verifySession,
@@ -36,7 +41,11 @@ walletRouter.get(
   getRecharges
 );
 
-walletRouter.post("/purchase", verifySession, checkRole("user"), makePurchase);
+// admin
+/*
+TODO: Get / traer todo los movimientos
+TODO: Delete / Eleminar
+*/
 
 // REEMBOLSO
 walletRouter.post(
@@ -46,20 +55,39 @@ walletRouter.post(
   createRefund
 );
 
+//TRAER SALDO TOTAL DE UN USUARIO - user y admin
+walletRouter.get(
+  "/balance",
+  verifySession,
+  checkRole("user", "provider"),
+  getMyBalance
+);
 walletRouter.get(
   "/balance/:userId",
   verifySession,
-  checkRole("user", "admin"),
-  getTotalBalance
+  checkRole("admin"),
+  getUserBalanceById
 );
 
+// OBTENER LOS MOVIMIENTOS DE UN USUARIO - admin
 walletRouter.get(
   "/movements/:userId",
   verifySession,
-  checkRole("user", "admin"),
-  getAllMovements
+  checkRole("admin"),
+  getMovements
 );
 
+// OBTENER LOS MOVIMIENTOS DEL USUARIO AUTENTICADO - user y provider
+walletRouter.get(
+  "/movements",
+  verifySession,
+  checkRole("user", "provider"),
+  getUserMovements
+);
+
+// OBTENER LOS MOVIMIENTOS DE TODOS LOS USUARIOS
+
+// APROBAR SOLICITUD DE RECARGA - admin
 walletRouter.put(
   "/recharge/:id/approve",
   verifySession,
@@ -67,6 +95,7 @@ walletRouter.put(
   approveRecharge
 );
 
+// OBTENER VENTAS DE UN PROVEEDOR - admin y provider
 walletRouter.get(
   "/get-provider-sales/:providerId",
   verifySession,
@@ -74,6 +103,7 @@ walletRouter.get(
   getProviderSales
 );
 
+// OBTENER COMPRAS DE UN USUARIO - user y admin
 walletRouter.get(
   "/purchases/:userId",
   verifySession,
@@ -82,5 +112,3 @@ walletRouter.get(
 );
 
 module.exports = walletRouter;
-
-// eliminar wallet

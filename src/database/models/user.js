@@ -3,7 +3,14 @@ const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
-      // define association here
+      User.hasMany(models.Referrals, {
+        foreignKey: "userId",
+        as: "referrals",
+      });
+      User.hasMany(models.Referrals, {
+        foreignKey: "referralUserId",
+        as: "referralUsers",
+      });
     }
   }
   User.init(
@@ -33,10 +40,14 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         unique: true,
       },
-      confirmed: {
-        type: DataTypes.BOOLEAN,
+      status: {
+        type: DataTypes.ENUM("active", "blocked", "pending_verification"),
         allowNull: false,
-        defaultValue: false,
+        defaultValue: "pending_verification",
+      },
+      lockedUntil: {
+        type: DataTypes.DATE,
+        field: "locked_until",
       },
       role: {
         type: DataTypes.STRING,
@@ -47,10 +58,6 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         unique: true,
         field: "code_user",
-      },
-      referralCode: {
-        type: DataTypes.STRING,
-        field: "referral_code",
       },
       createdAt: {
         allowNull: false,

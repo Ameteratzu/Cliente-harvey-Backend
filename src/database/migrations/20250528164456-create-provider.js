@@ -37,20 +37,24 @@ module.exports = {
         type: Sequelize.STRING,
         field: "second_telephone",
       },
-      confirmed: {
-        type: Sequelize.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
       role: {
         type: Sequelize.STRING,
         allowNull: false,
       },
-      codeUser: {
+      status: {
+        type: Sequelize.ENUM("active", "blocked", "pending_verification"),
+        allowNull: false,
+        defaultValue: "pending_verification",
+      },
+      lockedUntil: {
+        type: Sequelize.DATE,
+        field: "locked_until",
+      },
+      codeProvider: {
         type: Sequelize.STRING,
         allowNull: false,
         unique: true,
-        field: "code_user",
+        field: "code_provider",
       },
       createdAt: {
         allowNull: false,

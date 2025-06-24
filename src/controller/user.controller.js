@@ -1,172 +1,115 @@
 const catchAsync = require("../utils/catchAsync.js");
 const UserService = require("./../services/user.service.js");
-const db = require("../database/models/index.js");
 const AuthService = require("../services/auth.service.js");
 
 const authService = new AuthService();
 const userService = new UserService();
 
 module.exports.register = catchAsync(async (req, res) => {
-  try {
-    const newUser = await authService.register(req.body, req.userType);
-    return res
-      .status(201)
-      .json({ message: "Usuario creado con éxito", newUser });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  // TODO: se puede recibir el codigo de referido
+  const { body, userType } = req;
+
+  const newUser = await authService.register({ userData: body, userType });
+  return res.status(201).json({ message: "Usuario creado con éxito", newUser });
 });
 
 module.exports.login = catchAsync(async (req, res) => {
   const { email, password } = req.body;
-  try {
-    const { user, token } = await authService.login(
-      email,
-      password,
-      req.userType,
-      req
-    );
+  const { user, token } = await authService.login({
+    email,
+    password,
+    userType: req.userType,
+    req,
+  });
 
-    res.cookie("auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 1000 * 60 * 60 * 24,
-    });
-    return res.status(200).json(user);
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  res.cookie("auth_token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 1000 * 60 * 60 * 24,
+  });
+  return res.status(200).json(user);
 });
 
 module.exports.logout = catchAsync(async (req, res) => {
-  try {
-    const result = await authService.logout(req.user.id, req.userType, res);
-    return res.status(200).json(result);
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: error.message });
-  }
+  const { id: userId } = req.user;
+  const { userType } = req;
+
+  const result = await authService.logout({ userId, userType, res });
+  return res.status(200).json(result);
 });
 
 module.exports.confirmAccount = catchAsync(async (req, res) => {
   const { code } = req.params;
 
-  try {
-    const result = await authService.confirmAccount(code, req.userType);
-    return res.status(200).json(result);
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: error.message });
-  }
+  const result = await authService.confirmAccount({
+    code,
+    userType: req.userType,
+  });
+  return res.status(200).json(result);
 });
 
 module.exports.sendEmailCodeRecover = catchAsync(async (req, res) => {
   const { email } = req.body;
 
-  try {
-    const result = await authService.sendEmailCodeRecover(email, req.userType);
-    return res.status(200).json(result);
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: error.message });
-  }
+  const result = await authService.sendEmailCodeRecover({
+    email,
+    userType: req.userType,
+  });
+  return res.status(200).json(result);
 });
 
 module.exports.changePassword = catchAsync(async (req, res) => {
   const { code } = req.params;
   const { password } = req.body;
 
-  try {
-    const result = await authService.changePassword(
-      code,
-      password,
-      req.userType
-    );
-    return res.status(200).json(result);
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: error.message });
-  }
+  const result = await authService.changePassword({
+    code,
+    password,
+    userType: req.userType,
+  });
+  return res.status(200).json(result);
 });
 
 module.exports.getAllUsers = catchAsync(async (req, res) => {
-  try {
-    const allUsers = await userService.getAllUsers();
+  const allUsers = await userService.getAllUsers();
 
-    return res.status(200).json({ allUsers, results: allUsers.length });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  return res.status(200).json({ allUsers, results: allUsers.length });
 });
 
 module.exports.getUserById = catchAsync(async (req, res) => {
   const { id } = req.params;
 
-  try {
-    const user = await userService.getUserById(id);
+  const user = await userService.getUserById(id);
 
-    if (!user) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
-    }
-
-    return res.status(200).json({ user });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  return res.status(200).json({ user });
 });
 
 module.exports.editUser = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { telephone } = req.body;
 
-  try {
-    const user = await userService.getUserById(id);
+  const user = await userService.getUserById(id);
 
-    if (!user) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
-    }
-
-    if (user.telephone === telephone) {
-      return res
-        .status(400)
-        .json({ message: "El número de teléfono no puede ser el mismo" });
-    }
-
-    await db.Users.update({ telephone }, { where: { id } });
-
-    return res.status(200).json({ message: "Usuario actualizado con éxito" });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
+  if (user.telephone === telephone) {
+    return res
+      .status(400)
+      .json({ message: "El número de teléfono no puede ser el mismo" });
   }
-});
 
-module.exports.deleteUser = catchAsync(async (req, res) => {
-  try {
-    // solo admin
-    console.log({ data: req.user });
+  await userService.editUser({ id, telephone });
 
-    return res.status(200).json({ message: "Usuario eliminado con éxito" });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
+  return res.status(200).json({ message: "Usuario actualizado con éxito" });
 });
 
 module.exports.getProfile = catchAsync(async (req, res) => {
-  try {
-    const { id, role } = req.user;
-    if (role !== "user") {
-      return res.status(401).json({ message: "No autorizado" });
-    }
+  const { id } = req.user;
 
-    const userProfile = await userService.getUserById(id);
-    if (!userProfile) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
-    }
-
-    return res.status(200).json({ profile: userProfile });
-  } catch (error) {
-    console.log({ error });
-    return res.status(500).json({ message: error.message });
+  if (!id) {
+    res.status(400).json({ message: "id no valido" });
   }
+
+  const userProfile = await userService.getUserById(id);
+
+  return res.status(200).json({ profile: userProfile });
 });

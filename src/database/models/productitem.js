@@ -47,10 +47,17 @@ module.exports = (sequelize, DataTypes) => {
       url: {
         type: DataTypes.STRING,
       },
-      isPublished: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false,
-        field: "is_published",
+      status: {
+        type: DataTypes.ENUM(
+          "published",
+          "unpublished",
+          // INTERACTUAR EL USUARIO EN LA COMPRA
+          "inactive",
+          "reserved",
+          "purchased"
+        ),
+        allowNull: false,
+        defaultValue: "published",
       },
       providerId: {
         type: DataTypes.INTEGER,

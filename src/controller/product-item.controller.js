@@ -1,43 +1,79 @@
 const catchAsync = require("../utils/catchAsync.js");
 const ProductItemService = require("../services/product-item.service.js");
-const ProductService = require("../services/product.service.js");
-const ProviderService = require("../services/provider.service.js");
-const { generateUserCode } = require("../utils/token.js");
-const { hashPassword } = require("../utils/bcrypt");
-
 const productItemService = new ProductItemService();
-const productService = new ProductService();
-const providerService = new ProviderService();
 
 module.exports.createProductItem = catchAsync(async (req, res) => {
-  const { productId, providerId, password, ...productItemData } = req.body;
+  const { productId, password, ...productItemData } = req.body;
+  const { id: providerId } = req.user;
 
-  try {
-    const findProduct = await productService.findProductById(productId);
-    if (!findProduct) {
-      return res.status(404).json({ message: "Producto no encontrado" });
-    }
+  const productItem = await productItemService.createProductItem({
+    ...productItemData,
+    productId,
+    providerId,
+    password,
+  });
 
-    const findProvider = await providerService.getProviderById(providerId);
-    if (!findProvider) {
-      return res.status(404).json({ message: "Proveedor no encontrado" });
-    }
+  return res.status(201).json({ productItem });
+});
 
-    const productCodeItem = await generateUserCode();
-    productItemData.productCodeItem = productCodeItem;
+module.exports.getProductItems = catchAsync(async (req, res) => {
+  const { id: providerId } = req.user;
 
-    const hashedPassword = await hashPassword(password);
-    productItemData.password = hashedPassword;
+  const productItems = await productItemService.getAllProductItems(providerId);
+  return res
+    .status(200)
+    .json({ data: productItems, results: productItems.length });
+});
 
-    const productItem = await productItemService.createProductItem({
-      ...productItemData,
-      productId,
-      providerId,
-    });
+module.exports.getProviderProductItems = catchAsync(async (req, res) => {
+  const productItems = await productItemService.getProviderProductsItems();
+  return res
+    .status(200)
+    .json({ data: productItems, results: productItems.length });
+});
 
-    return res.status(201).json({ productItem });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: error.message });
-  }
+module.exports.getProductsItemsPublished = catchAsync(async (req, res) => {
+  const productItems = await productItemService.getProductsItemsPublished();
+
+  return res
+    .status(200)
+    .json({ data: productItems, results: productItems.length });
+});
+
+module.exports.getProductItemById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  const productItem = await productItemService.findProductItemById(id);
+  return res.status(200).json({ data: productItem });
+});
+
+module.exports.deleteProductItem = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { id: providerId } = req.user;
+
+  const deletedProductItem = await productItemService.deleteProductItem({
+    id,
+    providerId,
+  });
+  return res.status(200).json({
+    message: "Producto eliminado con éxito",
+    data: deletedProductItem,
+  });
+});
+
+module.exports.editProductItem = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { id: providerId } = req.user;
+  const { body } = req;
+
+  const updatedProductItem = await productItemService.editProductItem({
+    productItemData: body,
+    id,
+    providerId,
+  });
+
+  return res.status(200).json({
+    message: "Producto actualizado con éxito",
+    data: updatedProductItem,
+  });
 });

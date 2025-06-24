@@ -1,10 +1,27 @@
 const db = require("./../database/models/index.js");
+const AppError = require("../utils/appError");
+const Decimal = require("decimal.js");
 
 class WalletService {
+  getModel(userType) {
+    const models = {
+      user: { model: db.Users, walletField: "userId" },
+      provider: { model: db.Providers, walletField: "providerId" },
+    };
+
+    const entry = models[userType];
+    if (!entry) {
+      throw new AppError("Tipo de usuario no válido", 404);
+    }
+
+    return entry;
+  }
+
   // Generar código único de operación
   generateOperationCode(type) {
     const prefix = {
       recharge: "REC",
+      deduct: "DED",
       purchase: "PUR",
       refund: "REF",
     };
@@ -16,17 +33,29 @@ class WalletService {
 
   // RECARGAS
   async createRecharge(rechargeData) {
-    const { quantity, userId } = rechargeData;
+    const { quantity, id, role } = rechargeData;
 
-    return await db.Wallet.create({
-      quantity: Math.abs(quantity),
-      description: "Recarga de saldo",
-      operationCode: this.generateOperationCode("recharge"),
-      userId,
-      operationType: "recharge",
-      status: "pending",
-      operationDate: new Date(),
-    });
+    if (role === "user") {
+      return await db.Wallet.create({
+        quantity: Math.abs(quantity),
+        description: "Recarga de saldo",
+        operationCode: this.generateOperationCode("recharge"),
+        userId: id,
+        operationType: "recharge",
+        status: "pending",
+        operationDate: new Date(),
+      });
+    } else if (role === "provider") {
+      return await db.Wallet.create({
+        quantity: Math.abs(quantity),
+        description: "Recarga de saldo",
+        operationCode: this.generateOperationCode("recharge"),
+        providerId: id,
+        operationType: "recharge",
+        status: "pending",
+        operationDate: new Date(),
+      });
+    }
   }
 
   async approveRecharge(walletId, adminId) {
@@ -51,28 +80,38 @@ class WalletService {
     );
   }
 
-  // COMPRAS
-  async createPurchase(purchaseData) {
-    const { quantity, description, userId, providerId, productItemId } =
-      purchaseData;
-
-    // Verificar saldo antes de comprar
-    const currentBalance = await this.getTotalBalance(userId);
-    if (currentBalance < quantity) {
-      throw new Error("Saldo insuficiente para realizar la compra");
+  async createMovement({
+    quantity,
+    description,
+    userId,
+    providerId,
+    purchasingGroupCode,
+    productItemId,
+    operationType = "purchase", // default al tipo esperado
+    operationCode,
+    status = "accepted", // default aceptado
+    transaction,
+  }) {
+    if (!operationCode) {
+      operationCode = this.generateOperationCode(operationType);
     }
 
-    return await db.Wallet.create({
-      quantity: Math.abs(quantity),
-      description: description || "Compra de producto",
-      operationCode: this.generateOperationCode("purchase"),
-      userId,
-      providerId,
-      productItemId,
-      operationType: "purchase",
-      status: "accepted", // Las compras se aceptan automáticamente si hay saldo
-      operationDate: new Date(),
-    });
+    return await db.Wallet.create(
+      {
+        quantity,
+        description,
+        purchasingGroupCode,
+        operationCode,
+        userId,
+        providerId,
+        productItemId,
+        operationType,
+        status,
+      },
+      {
+        transaction,
+      }
+    );
   }
 
   // REEMBOLSOS
@@ -100,30 +139,58 @@ class WalletService {
     });
   }
 
+  // DESCONTAR SALDO
+  async deductBalance({ quantity, id, transaction, userType, description }) {
+    const { walletField } = this.getModel(userType);
+
+    return await db.Wallet.create(
+      {
+        quantity: Math.abs(quantity),
+        description: description || "Descuento de saldo",
+        operationCode: this.generateOperationCode("deduct"),
+        [walletField]: id,
+        operationType: "deduct",
+        status: "accepted",
+        operationDate: new Date(),
+      },
+      {
+        transaction,
+      }
+    );
+  }
+
   // CONSULTAS
-  async getTotalBalance(userId) {
+  async getTotalBalance({ userId, userType, transaction }) {
+    const { model: Model, walletField } = this.getModel(userType);
+
+    const account = await Model.findByPk(userId, { transaction });
+
+    if (!account) {
+      throw new AppError("Cuenta no encontrado", 404);
+    }
+
     const transactions = await db.Wallet.findAll({
       where: {
-        userId,
+        [walletField]: userId,
         status: "accepted",
       },
       attributes: ["quantity", "operationType"],
+      transaction,
     });
 
-    return transactions.reduce((balance, transaction) => {
-      if (
-        transaction.operationType === "recharge" ||
-        transaction.operationType === "refund"
-      ) {
-        return balance + transaction.quantity;
-      } else if (transaction.operationType === "purchase") {
-        return balance - transaction.quantity;
+    return transactions.reduce((balance, tx) => {
+      const quantity = new Decimal(tx.quantity);
+
+      if (["recharge", "refund"].includes(tx.operationType)) {
+        return balance.plus(quantity);
+      } else if (["purchase", "deduct"].includes(tx.operationType)) {
+        return balance.minus(quantity);
       }
       return balance;
-    }, 0);
+    }, new Decimal(0));
   }
 
-  async getAllMovements(userId, options = {}) {
+  async getMovements(userId, options = {}) {
     const { page = 1, limit = 10, operationType } = options;
     const offset = (page - 1) * limit;
 

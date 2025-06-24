@@ -52,6 +52,8 @@ providerRouter.patch(
   changePassword
 );
 
+// TODO: editar telefono por medio de correo
+
 providerRouter.get("/profile", setUserType, verifySession, getProfile);
 
 providerRouter.get("/", getAllProviders);

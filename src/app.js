@@ -9,6 +9,8 @@ const { xss } = require("express-xss-sanitizer");
 const path = require("path");
 
 const router = require("./routes/index.js");
+const errorHandler = require("./middlewares/errorHandler.js");
+const AppError = require("./utils/appError.js");
 
 const app = express();
 if (process.env.NODE_ENV === "development") {
@@ -32,4 +34,7 @@ app.use("/api/v1/", router);
 app.get("/", (req, res) => {
   return res.send("Welcome to express!");
 });
+
+app.use(errorHandler);
+
 module.exports = app;

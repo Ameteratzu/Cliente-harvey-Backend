@@ -3,7 +3,6 @@ const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
   class Purchase extends Model {
     static associate(models) {
-      // define association here
       Purchase.belongsTo(models.ProductItem, {
         foreignKey: "productItemid",
         as: "productItem",
@@ -29,8 +28,66 @@ module.exports = (sequelize, DataTypes) => {
       purchaseCode: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,
         field: "purchase_code",
+      },
+      productCodeItem: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        field: "product_code_item",
+      },
+      purchasingGroupCode: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        field: "purchasing_group_code",
+      },
+      productItemName: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        field: "product_item_name",
+      },
+      termsOfUse: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        field: "terms_of_use",
+      },
+      duration: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      renewalPrice: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        field: "renewal_price",
+      },
+      purcahaseDate: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "purchase_date",
+      },
+      expirationDate: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "expiration_date",
+      },
+      note: {
+        type: DataTypes.TEXT,
+      },
+      descriptionProblem: {
+        type: DataTypes.TEXT,
+        field: "description_problem",
+      },
+      status: {
+        type: DataTypes.ENUM(
+          "purchased", // comprado
+          "support", // en soporte
+          "ordered", // pedido
+          "delivered", // entregado
+          "resolved", // resuelto
+          "renewed", // renovado
+          "beaten" // vencido
+        ),
+        defaultValue: "purchased",
+        allowNull: false,
       },
       productItemid: {
         allowNull: false,
@@ -58,47 +115,6 @@ module.exports = (sequelize, DataTypes) => {
           key: "id",
         },
         field: "provider_id",
-      },
-      duration: {
-        allowNull: false,
-        type: DataTypes.INTEGER,
-      },
-      amount: {
-        allowNull: false,
-        type: DataTypes.DECIMAL(10, 2),
-      },
-      renewalPrice: {
-        allowNull: false,
-        type: DataTypes.DECIMAL(10, 2),
-      },
-      status: {
-        type: DataTypes.ENUM(
-          "purchased", // comprado
-          "support", // en soporte
-          "ordered", // pedido
-          "delivered", // entregado
-          "resolved", // resuelto
-          "renewed", // renovado
-          "beaten" // vencido
-        ),
-        defaultValue: "purchased",
-        allowNull: false,
-      },
-      purchaseDate: {
-        allowNull: false,
-        type: DataTypes.DATE,
-      },
-      expirationDate: {
-        allowNull: false,
-        type: DataTypes.DATE,
-      },
-      supportDate: {
-        // fecha de soporte
-        type: DataTypes.DATE,
-      },
-      supportDescription: {
-        // descripcion de soporte
-        type: DataTypes.TEXT,
       },
       createdAt: {
         allowNull: false,

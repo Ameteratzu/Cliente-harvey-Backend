@@ -42,20 +42,24 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         field: "second_telephone",
       },
-      confirmed: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
       role: {
         type: DataTypes.STRING,
         allowNull: false,
       },
-      codeUser: {
+      status: {
+        type: DataTypes.ENUM("active", "blocked", "pending_verification"),
+        allowNull: false,
+        defaultValue: "pending_verification",
+      },
+      lockedUntil: {
+        type: DataTypes.DATE,
+        field: "locked_until",
+      },
+      codeProvider: {
         type: DataTypes.STRING,
         allowNull: false,
         unique: true,
-        field: "code_user",
+        field: "code_provider",
       },
       createdAt: {
         allowNull: false,

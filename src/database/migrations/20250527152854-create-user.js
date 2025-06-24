@@ -2,6 +2,22 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    // Drop existing enum types if they exist
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_users_status";'
+    );
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_users_role";'
+    );
+
+    // Create enum types
+    await queryInterface.sequelize.query(
+      `CREATE TYPE "enum_users_status" AS ENUM ('active', 'blocked', 'pending_verification');`
+    );
+    await queryInterface.sequelize.query(
+      `CREATE TYPE "enum_users_role" AS ENUM ('admin', 'provider', 'user');`
+    );
+
     await queryInterface.createTable("users", {
       id: {
         allowNull: false,
@@ -28,13 +44,17 @@ module.exports = {
         allowNull: false,
         unique: true,
       },
-      confirmed: {
-        type: Sequelize.BOOLEAN,
+      status: {
+        type: Sequelize.ENUM("active", "blocked", "pending_verification"),
         allowNull: false,
-        defaultValue: false,
+        defaultValue: "pending_verification",
+      },
+      lockedUntil: {
+        type: Sequelize.DATE,
+        field: "locked_until",
       },
       role: {
-        type: Sequelize.STRING,
+        type: Sequelize.ENUM("admin", "provider", "user"),
         allowNull: false,
       },
       codeUser: {
@@ -42,10 +62,6 @@ module.exports = {
         allowNull: false,
         unique: true,
         field: "code_user",
-      },
-      referralCode: {
-        type: Sequelize.STRING,
-        field: "referral_code",
       },
       createdAt: {
         allowNull: false,
@@ -63,5 +79,13 @@ module.exports = {
   },
   async down(queryInterface, Sequelize) {
     await queryInterface.dropTable("users");
+
+    // Drop enum types
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_users_status";'
+    );
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_users_role";'
+    );
   },
 };

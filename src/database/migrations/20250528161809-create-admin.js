@@ -28,24 +28,18 @@ module.exports = {
         allowNull: false,
         unique: true,
       },
-      confirmed: {
-        type: Sequelize.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
       role: {
         type: Sequelize.STRING,
         allowNull: false,
       },
-      codeUser: {
-        type: Sequelize.STRING,
+      status: {
+        type: Sequelize.ENUM("active", "blocked", "pending_verification"),
         allowNull: false,
-        unique: true,
-        field: "code_user",
+        defaultValue: "pending_verification",
       },
-      referralCode: {
-        type: Sequelize.STRING,
-        field: "referral_code",
+      lockedUntil: {
+        type: Sequelize.DATE,
+        field: "locked_until",
       },
       createdAt: {
         allowNull: false,

@@ -22,6 +22,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "productId",
         as: "productItem",
       });
+
+      Product.hasMany(models.PublishedProducts, {
+        foreignKey: "productId",
+        as: "publishedProducts",
+      });
     }
   }
   Product.init(
@@ -52,14 +57,6 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      publishStartDate: {
-        type: DataTypes.DATE,
-        field: "publish_start_date",
-      },
-      publishEndDate: {
-        type: DataTypes.DATE,
-        field: "publish_end_date",
-      },
       isOnSale: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -67,17 +64,17 @@ module.exports = (sequelize, DataTypes) => {
         field: "is_on_sale",
       },
       regularPrice: {
-        type: DataTypes.DECIMAL,
+        type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
         field: "regular_price",
       },
       salePrice: {
-        type: DataTypes.DECIMAL,
+        type: DataTypes.DECIMAL(10, 2),
         defaultValue: 0,
         field: "sale_price",
       },
       renewalPrice: {
-        type: DataTypes.DECIMAL,
+        type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
         defaultValue: 0,
         field: "renewal_price",
@@ -104,14 +101,10 @@ module.exports = (sequelize, DataTypes) => {
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
       },
-      isPublished: {
-        type: DataTypes.BOOLEAN,
+      typeOfDelivery: {
+        type: DataTypes.ENUM("selfDelivery", "uponRequest"),
         allowNull: false,
-        defaultValue: false,
-        field: "is_published",
-      },
-      url: {
-        type: DataTypes.STRING,
+        field: "type_of_delivery",
       },
       createdAt: {
         allowNull: false,

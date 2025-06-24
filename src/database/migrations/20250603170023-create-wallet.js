@@ -10,12 +10,15 @@ module.exports = {
         type: Sequelize.INTEGER,
       },
       quantity: {
-        type: Sequelize.DOUBLE,
+        type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
       },
       description: {
         type: Sequelize.STRING,
         allowNull: false,
+      },
+      purchasingGroupCode: {
+        type: Sequelize.STRING,
       },
       operationDate: {
         type: Sequelize.DATE,
@@ -49,17 +52,6 @@ module.exports = {
         onDelete: "SET NULL",
         field: "provider_id",
       },
-      productItemId: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        references: {
-          model: "product_items",
-          key: "id",
-        },
-        onUpdate: "CASCADE",
-        onDelete: "SET NULL",
-        field: "product_item_id",
-      },
       adminId: {
         type: Sequelize.INTEGER,
         allowNull: true,
@@ -75,8 +67,17 @@ module.exports = {
         type: Sequelize.ENUM("pending", "accepted", "rejected"),
         defaultValue: "pending",
       },
+      note: {
+        type: Sequelize.TEXT,
+      },
       operationType: {
-        type: Sequelize.ENUM("recharge", "purchase", "refund"),
+        type: Sequelize.ENUM(
+          "recharge",
+          "purchase",
+          "refund",
+          "earning",
+          "deduct"
+        ),
         allowNull: false,
         field: "operation_type",
       },

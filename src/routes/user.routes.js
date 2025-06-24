@@ -6,7 +6,7 @@ const {
   validationChangePassword,
   validationSendEmailCodeRecover,
   validationEditUser,
-} = require("../middlewares/validateInputErrors");
+} = require("../middlewares/validateInputErrors.js");
 const {
   register,
   login,
@@ -17,11 +17,11 @@ const {
   editUser,
   sendEmailCodeRecover,
   getProfile,
-  deleteUser,
   logout,
-} = require("../controller/user.controller");
-const setUserType = require("../middlewares/setUserType");
-const { verifySession } = require("../middlewares/verifySession");
+} = require("../controller/user.controller.js");
+const setUserType = require("../middlewares/setUserType.js");
+const { verifySession } = require("../middlewares/verifySession.js");
+const checkRole = require("../middlewares/chekRole.js");
 
 const userRoutes = express.Router();
 
@@ -41,6 +41,7 @@ userRoutes.post(
   validationSendEmailCodeRecover,
   sendEmailCodeRecover
 );
+// TODO: cambiar de numero de telefono
 userRoutes.patch(
   "/change-password/:code",
   setUserType,
@@ -49,10 +50,15 @@ userRoutes.patch(
 );
 
 userRoutes.get("/", getAllUsers);
-userRoutes.get("/profile", verifySession, getProfile);
+userRoutes.get("/profile", verifySession, checkRole("user"), getProfile);
 
 userRoutes.get("/:id", getUserById);
-userRoutes.delete("/:id", deleteUser);
-userRoutes.put("/:id", verifySession, validationEditUser, editUser);
+userRoutes.put(
+  "/:id",
+  verifySession,
+  checkRole("user"),
+  validationEditUser,
+  editUser
+);
 
 module.exports = userRoutes;

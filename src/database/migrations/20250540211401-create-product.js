@@ -25,14 +25,6 @@ module.exports = {
         allowNull: false,
         field: "terms_of_use",
       },
-      publishStartDate: {
-        type: Sequelize.DATE,
-        field: "publish_start_date",
-      },
-      publishEndDate: {
-        type: Sequelize.DATE,
-        field: "publish_end_date",
-      },
       duration: {
         type: Sequelize.INTEGER,
         allowNull: false,
@@ -59,6 +51,11 @@ module.exports = {
         defaultValue: 0,
         field: "renewal_price",
       },
+      typeOfDelivery: {
+        type: Sequelize.ENUM("selfDelivery", "uponRequest"),
+        allowNull: false,
+        field: "type_of_delivery",
+      },
       providerId: {
         type: Sequelize.INTEGER,
         allowNull: false,
@@ -80,15 +77,6 @@ module.exports = {
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
-      },
-      isPublished: {
-        type: Sequelize.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-        field: "is_published",
-      },
-      url: {
-        type: Sequelize.STRING,
       },
       createdAt: {
         allowNull: false,

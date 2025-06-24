@@ -8,6 +8,11 @@ const productRouter = require("./product.routes");
 const productItemRouter = require("./product-item.routes");
 const walletRouter = require("./wallet.routes");
 const purchasesRouter = require("./purchases.routes");
+const cartRouter = require("./cart.route");
+const referralsRouter = require("./referrals.routes");
+const providerDiscountRouter = require("./provider-discount.route");
+const publishedPruductsRouter = require("./published-products.routes");
+const purchaseDiscountRouter = require("./purchase-discount.routes");
 
 const router = express.Router();
 
@@ -20,5 +25,10 @@ router.use("/products", productRouter);
 router.use("/product-item", productItemRouter);
 router.use("/wallet", walletRouter);
 router.use("/purchases", purchasesRouter);
+router.use("/cart", cartRouter);
+router.use("/referrals", referralsRouter);
+router.use("/provider-discount", providerDiscountRouter);
+router.use("/published-products", publishedPruductsRouter);
+router.use("/purchase-discount", purchaseDiscountRouter);
 
 module.exports = router;

@@ -281,7 +281,7 @@ module.exports.validationCreateCategory = [
 ];
 
 module.exports.validationParamId = [
-  param("id").notEmpty().withMessage("Id no es válido"),
+  param("id").isInt().withMessage("Id no es válido"),
   validFields,
 ];
 
@@ -336,15 +336,17 @@ module.exports.validationCreateProduct = [
     .isNumeric()
     .withMessage("El precio de renovación debe ser un número")
     .escape(),
+  body("typeOfDelivery")
+    .notEmpty()
+    .withMessage("El tipo de entrega es obligatorio")
+    .isIn(["selfDelivery", "uponRequest"])
+    .withMessage("El tipo de entrega debe ser 'selfDelivery' o 'uponRequest'")
+    .escape(),
   body("productUrl")
     .notEmpty()
     .withMessage("La URL es obligatoria")
     .isString()
     .withMessage("La URL debe ser una cadena de texto")
-    .escape(),
-  body("providerId")
-    .notEmpty()
-    .withMessage("El proveedor es obligatorio")
     .escape(),
   body("categoryId")
     .notEmpty()
