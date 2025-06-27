@@ -11,6 +11,14 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "referralUserId",
         as: "referralUsers",
       });
+      User.hasMany(models.Purchase, {
+        foreignKey: "userId",
+        as: "purchases",
+      });
+      User.hasMany(models.Wallet, {
+        foreignKey: "userId",
+        as: "wallet",
+      });
     }
   }
   User.init(

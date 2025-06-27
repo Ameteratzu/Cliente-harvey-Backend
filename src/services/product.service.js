@@ -1,9 +1,7 @@
 const db = require("./../database/models/index.js");
-const { addDays } = require("date-fns");
 const AppError = require("../utils/appError.js");
 const WalletService = require("./wallet.service.js");
 const CategoryService = require("../services/category.service.js");
-const { generateUserCode } = require("../utils/token.js");
 
 class ProductService {
   constructor() {
@@ -84,7 +82,13 @@ class ProductService {
   // TODO: TRAER LOS PRODUCTOS DEL PROVIDER
 
   async findProductById(id) {
-    return await db.Product.findOne({ where: { id } });
+    const product = await db.Product.findOne({ where: { id } });
+
+    if (!product) {
+      throw new AppError("Producto no encontrado", 404);
+    }
+
+    return product;
   }
 
   async editProduct(id, productData) {

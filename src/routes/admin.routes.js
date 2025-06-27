@@ -50,7 +50,6 @@ adminRouter.patch(
 
 // obtener todos los usuarios, proveedores y admins
 adminRouter.get("/", verifySession, checkRole("admin"), getAllUserTypes);
-// TODO: bloquear automaticamente cuando no tenga movimientos ni compras
 
 adminRouter.get("/:id", getAdminById);
 adminRouter.put("/:id", validationEditUser, editAdmin);

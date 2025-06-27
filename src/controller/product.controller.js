@@ -19,21 +19,6 @@ module.exports.createProduct = catchAsync(async (req, res) => {
   return res.status(201).json({ message: "Producto creado con éxito" });
 });
 
-module.exports.publishProduct = catchAsync(async (req, res) => {
-  const { id: productItemId } = req.params;
-  const { id: providerId, role: providerRole } = req.user;
-  const { days } = req.body;
-
-  await productService.publishProduct({
-    productItemId,
-    providerId,
-    providerRole,
-    days,
-  });
-
-  return res.status(200).json({ message: "Producto publicado con éxito" });
-});
-
 module.exports.putProductOnSale = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { salePrice } = req.body;
@@ -94,29 +79,6 @@ module.exports.renewProduct = catchAsync(async (req, res) => {
 
   await productService.renewProduct(id, findProduct.publishEndDate);
   return res.status(200).json({ message: "Producto renovado con éxito" });
-});
-
-module.exports.unPublishProduct = catchAsync(async (req, res) => {
-  const { id } = req.params;
-
-  const findProduct = await productService.findProductById(id);
-  if (!findProduct) {
-    return res.status(404).json({ message: "Producto no encontrado" });
-  }
-
-  const days = differenceInDays(
-    new Date(findProduct.publishEndDate),
-    new Date()
-  );
-
-  if (days < 0) {
-    await productService.unPublishProduct(id);
-    return res.status(200).json({ message: "Producto despublicado con éxito" });
-  }
-
-  return res
-    .status(400)
-    .json({ message: "No se puede despublicar el producto" });
 });
 
 module.exports.getProductById = catchAsync(async (req, res) => {

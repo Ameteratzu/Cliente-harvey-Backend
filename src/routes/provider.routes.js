@@ -11,6 +11,8 @@ const {
   deleteUser,
   logout,
   getProfile,
+  sendEmailCodeChangeTelephone,
+  changeTelephone,
 } = require("../controller/provider.controller");
 const {
   validationRegisterProvider,
@@ -52,7 +54,19 @@ providerRouter.patch(
   changePassword
 );
 
-// TODO: editar telefono por medio de correo
+providerRouter.post(
+  "/send-email-code-change-telephone",
+  verifySession,
+  checkRole("provider"),
+  sendEmailCodeChangeTelephone
+);
+
+providerRouter.patch(
+  "/change-telephone",
+  verifySession,
+  checkRole("provider"),
+  changeTelephone
+);
 
 providerRouter.get("/profile", setUserType, verifySession, getProfile);
 

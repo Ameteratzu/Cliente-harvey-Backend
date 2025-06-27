@@ -23,10 +23,22 @@ module.exports.createPurchase = catchAsync(async (req, res) => {
   });
 });
 
-module.exports.getPurchases = catchAsync(async (req, res) => {
+module.exports.getMostSoldProducts = catchAsync(async (req, res) => {
+  const { limit } = req.query;
+
+  const products = await purchaseService.getMostSoldProducts(limit);
+
+  return res.status(200).json({
+    message: "Productos obtenidos exitosamente",
+    data: products,
+    results: products.length,
+  });
+});
+
+module.exports.filterPurchases = catchAsync(async (req, res) => {
   const { status } = req.query;
 
-  const purchases = await purchaseService.getPurchases(status);
+  const purchases = await purchaseService.filterPurchases(status);
 
   return res.status(200).json({
     message: "Compras obtenidas exitosamente",
@@ -139,5 +151,43 @@ module.exports.getProviderSalesById = catchAsync(async (req, res) => {
   return res.status(200).json({
     message: "Venta obtenida exitosamente",
     data: sale,
+  });
+});
+
+module.exports.makeForcedRefund = catchAsync(async (req, res) => {
+  const { id: purchaseId } = req.params;
+
+  const result = await purchaseService.changeToRefuned({ purchaseId });
+
+  return res.status(200).json({
+    message: "Reembolso realizado con éxito",
+    data: result,
+  });
+});
+
+// ACEPTAR RENOVACIONES
+module.exports.acceptRenewal = catchAsync(async (req, res) => {
+  const { id: purchaseId } = req.params;
+  const { id: providerId, role: userType } = req.user;
+
+  const result = await purchaseService.acceptRenewal({
+    purchaseId,
+    providerId,
+    userType,
+  });
+
+  return res.status(200).json({
+    message: "Renovación aceptada con éxito",
+    data: result,
+  });
+});
+
+module.exports.deleteExpired = catchAsync(async (req, res) => {
+  const { id: purchaseId } = req.params;
+  const result = await purchaseService.deleteExpired({ purchaseId });
+
+  return res.status(200).json({
+    message: "Compras expiradas eliminadas con éxito",
+    data: result,
   });
 });

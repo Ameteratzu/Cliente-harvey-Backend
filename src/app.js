@@ -1,4 +1,5 @@
 const cors = require("cors");
+const runCrons = require("./cron/index.js");
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
@@ -7,6 +8,10 @@ const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const { xss } = require("express-xss-sanitizer");
 const path = require("path");
+const dotenv = require("dotenv");
+dotenv.config();
+
+runCrons();
 
 const router = require("./routes/index.js");
 const errorHandler = require("./middlewares/errorHandler.js");
@@ -22,7 +27,12 @@ if (process.env.NODE_ENV === "development") {
 app.use(cookieParser());
 app.use(helmet());
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(xss());
 app.use(hpp());
 

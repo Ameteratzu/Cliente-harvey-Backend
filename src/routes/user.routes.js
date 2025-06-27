@@ -18,6 +18,8 @@ const {
   sendEmailCodeRecover,
   getProfile,
   logout,
+  sendEmailCodeChangeTelephone,
+  changeTelephone,
 } = require("../controller/user.controller.js");
 const setUserType = require("../middlewares/setUserType.js");
 const { verifySession } = require("../middlewares/verifySession.js");
@@ -41,7 +43,20 @@ userRoutes.post(
   validationSendEmailCodeRecover,
   sendEmailCodeRecover
 );
-// TODO: cambiar de numero de telefono
+userRoutes.post(
+  "/send-email-code-change-telephone",
+  verifySession,
+  checkRole("user"),
+  sendEmailCodeChangeTelephone
+);
+
+userRoutes.patch(
+  "/change-telephone/:code",
+  verifySession,
+  checkRole("user"),
+  changeTelephone
+);
+
 userRoutes.patch(
   "/change-password/:code",
   setUserType,

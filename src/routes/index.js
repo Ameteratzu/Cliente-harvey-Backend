@@ -13,6 +13,8 @@ const referralsRouter = require("./referrals.routes");
 const providerDiscountRouter = require("./provider-discount.route");
 const publishedPruductsRouter = require("./published-products.routes");
 const purchaseDiscountRouter = require("./purchase-discount.routes");
+const favoritesRouter = require("./favorites.routes");
+const ratingRouter = require("./rating.routes");
 
 const router = express.Router();
 
@@ -30,5 +32,7 @@ router.use("/referrals", referralsRouter);
 router.use("/provider-discount", providerDiscountRouter);
 router.use("/published-products", publishedPruductsRouter);
 router.use("/purchase-discount", purchaseDiscountRouter);
+router.use("/favorites", favoritesRouter);
+router.use("/rating", ratingRouter);
 
 module.exports = router;

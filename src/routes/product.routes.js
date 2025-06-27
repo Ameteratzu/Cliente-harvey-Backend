@@ -4,11 +4,9 @@ const {
   getAllProducts,
   getProductById,
   deleteProduct,
-  publishProduct,
   putProductOnSale,
   editProduct,
   renewProduct,
-  unPublishProduct,
 } = require("../controller/product.controller");
 const {
   validationCreateProduct,
@@ -24,7 +22,7 @@ const productRouter = express.Router();
 productRouter.get(
   "/",
   verifySession,
-  checkRole("admin", "provider"),
+  checkRole("user", "provider"),
   getAllProducts
 );
 productRouter.post(
@@ -35,20 +33,6 @@ productRouter.post(
   createProduct
 );
 
-// provider
-// TODO: edita su producto
-/* elimina su producto */
-
-// sistema de valoraciones, puntos y comentarios
-// endpoint para edvolver los productos mas vendidos
-
-productRouter.post(
-  "/publish/:id",
-  verifySession,
-  checkRole("provider"),
-  validationParamId,
-  publishProduct
-);
 productRouter.patch(
   "/on-sale/:id",
   validationPutProductOnSale,
@@ -56,7 +40,6 @@ productRouter.patch(
 );
 
 productRouter.get("/:id", validationParamId, getProductById);
-productRouter.put("/unpublish/:id", verifySession, unPublishProduct);
 productRouter.patch("/renew/:id", renewProduct);
 productRouter.put(
   "/:id",

@@ -23,6 +23,11 @@ publishedProductsRouter.get(
   getMyPublishedProducts
 );
 
-publishedProductsRouter.get("/all-published-products", getAllPublishedProducts);
+publishedProductsRouter.get(
+  "/all-published-products",
+  verifySession,
+  checkRole("admin", "user", "provider"),
+  getAllPublishedProducts
+);
 
 module.exports = publishedProductsRouter;

@@ -24,8 +24,8 @@ class PublishedProductsService {
     return entry;
   }
 
-  async createPublishedProduct({ body, role }) {
-    const { providerId, productId, publishedEndDate } = body;
+  async createPublishedProduct({ body, role, id: providerId }) {
+    const { productId, publishedEndDate } = body;
 
     const provider = await db.Providers.findOne({ where: { id: providerId } });
     const product = await db.Product.findOne({ where: { id: productId } });
@@ -41,13 +41,6 @@ class PublishedProductsService {
     const transaction = await db.sequelize.transaction();
 
     try {
-      // if (product.providerId !== providerId) {
-      //   throw new AppError(
-      //     "No tienes permiso para publicar este producto",
-      //     401
-      //   );
-      // }
-
       if (product.id === publishedProduct?.id) {
         throw new AppError("El producto ya estaba publicado", 400);
       }
@@ -63,16 +56,17 @@ class PublishedProductsService {
         transaction,
       });
 
-      // TODO: PONER EXACTAMENTE LA FECHA DE HOY
       const publishStartDate = toZonedTime(new Date(), "America/Lima");
-      console.log({ publishStartDate });
 
       const days = differenceInDays(
         new Date(publishedEndDate),
         publishStartDate
       );
-      const publishCost =
-        (providerPaysDiscount.quantity ?? this.publishCost) * days;
+
+      let publishCost = this.publishCost; // 0
+      if (providerPaysDiscount) {
+        publishCost = providerPaysDiscount?.quantity * days; // 10
+      }
 
       if (providerBalance < publishCost) {
         throw new AppError(
@@ -155,6 +149,10 @@ class PublishedProductsService {
 
   async getAllPublishedProducts() {
     const publishedProducts = await db.PublishedProducts.findAll({
+      where: {
+        publishedEndDate: { [db.Sequelize.Op.gt]: new Date() },
+      },
+      attributes: ["id", "publishedStartDate", "publishedEndDate"],
       include: [
         {
           model: db.Product,
@@ -164,6 +162,11 @@ class PublishedProductsService {
               model: db.ProductItem,
               as: "productItem",
               attributes: ["id", "status"],
+            },
+            {
+              model: db.Rating,
+              as: "ratings",
+              attributes: ["id", "rating"],
             },
           ],
         },
@@ -178,6 +181,9 @@ class PublishedProductsService {
     // Mapear y agregar campos requeridos
     const result = publishedProducts.map((pub) => {
       return {
+        id: pub.id,
+        publishedStartDate: pub.publishedStartDate,
+        publishedEndDate: pub.publishedEndDate,
         product: {
           id: pub.product.id,
           productName: pub.product.productName,
@@ -189,11 +195,12 @@ class PublishedProductsService {
           regularPrice: pub.product.regularPrice,
           typeOfDelivery: pub.product.typeOfDelivery,
           renewalPrice: pub.product.renewalPrice,
-          // productItem: pub.product.productItem.filter(
-          //   (p) => p.status === "published"
-          // ),
           stock: pub.product.productItem.filter((p) => p.status === "published")
             .length,
+          rating:
+            pub.product.ratings
+              .map((r) => r.rating)
+              .reduce((a, b) => a + b, 0) / pub.product.ratings.length,
         },
         provider: {
           id: pub.provider.id,
@@ -204,8 +211,6 @@ class PublishedProductsService {
 
     return result;
   }
-
-  // TODO: ELIMINAR EN AUTOMATICO
 }
 
 module.exports = PublishedProductsService;

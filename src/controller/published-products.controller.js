@@ -3,16 +3,11 @@ const PublishedProductsService = require("../services/publisehd-products.service
 
 const publishedProductsService = new PublishedProductsService();
 
-// TODO: al publicar un producto, se le cobra un monto
-/*- publicar el producto
-  - eliminar la publicación cuando vence automaticamente
-     */
-
 module.exports.createPublishedProduct = catchAsync(async (req, res) => {
-  const { role } = req.user;
+  const { role, id } = req.user;
   const { body } = req;
 
-  await publishedProductsService.createPublishedProduct({ body, role });
+  await publishedProductsService.createPublishedProduct({ body, role, id });
 
   return res.status(200).json({ message: "Producto publicado con éxito" });
 });

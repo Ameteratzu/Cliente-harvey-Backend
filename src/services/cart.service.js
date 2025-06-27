@@ -51,118 +51,6 @@ class CartService {
     return deletedCount;
   }
 
-  // Agregar item al carrito
-  /*  async addToCart({ userId, productId }) {
-    // Primero limpiar items expirados
-    await this.cleanExpiredItems();
-
-    const product = await db.Product.findOne({ where: { id: productId } });
-    if (!product) {
-      throw new AppError("Producto no encontrado", 404);
-    }
-
-    const findProduct = await db.Carts.findOne({
-      where: {
-        userId,
-        publishedProductId: productId,
-      },
-    });
-
-    if (findProduct) {
-      const productItem = await db.ProductItem.findAll({
-        where: {
-          productId,
-          status: "published", // Solo productos publicados pueden agregarse
-        },
-        include: [
-          {
-            model: db.Product,
-            as: "product",
-            attributes: [
-              "productName",
-              "productCode",
-              "duration",
-              "regularPrice",
-            ],
-          },
-        ],
-      });
-
-      const firstProductItem = productItem[0];
-      if (!firstProductItem) {
-        throw new AppError("Producto no disponible", 400);
-      }
-
-      await db.ProductsInCarts.create({
-        userId,
-        cartId: cart.id,
-        productItemId: firstProductItem.id,
-        price: firstProductItem.isOnSale // TODO: CUANDO HAY OFERTA, TOMA EL PRECIO REGULAR,
-          ? firstProductItem.salePrice
-          : firstProductItem.regularPrice,
-      });
-
-      await firstProductItem.update({
-        status: "reserved",
-      });
-    }
-
-    let cart = await db.Carts.findOne({
-      where: {
-        userId,
-      },
-    });
-
-    if (!cart) {
-      cart = await db.Carts.create({
-        userId,
-        publishedProductId: productId, // TODO: CAMBIAR NOMBRE DEL CAMPO
-      });
-    }
-
-    const productItem = await db.ProductItem.findAll({
-      where: {
-        productId,
-        status: "published", // Solo productos publicados pueden agregarse
-      },
-      include: [
-        {
-          model: db.Product,
-          as: "product",
-          attributes: [
-            "productName",
-            "productCode",
-            "duration",
-            "regularPrice",
-          ],
-        },
-      ],
-    });
-
-    const firstProductItem = productItem[0];
-    if (!firstProductItem) {
-      throw new AppError("Producto no disponible", 400);
-    }
-
-    await db.ProductsInCarts.create({
-      userId,
-      cartId: cart.id,
-      productItemId: firstProductItem.id,
-      price: firstProductItem.isOnSale // TODO: CUANDO HAY OFERTA, TOMA EL PRECIO REGULAR,
-        ? firstProductItem.salePrice
-        : firstProductItem.regularPrice,
-    });
-
-    await firstProductItem.update({
-      status: "reserved",
-    });
-
-    // TODO: LUEGO DE 2 MINUTOS PONER EL PRODUCT ITEM EN published
-
-    // TODO: RETONAR, CANTIDAD DE ITEMS EN EL CARRITO
-  }
-    */
-
   async addToCart({ userId, productId }) {
     const transaction = await db.sequelize.transaction();
 
@@ -263,6 +151,7 @@ class CartService {
                     "duration",
                     "salePrice",
                     "regularPrice",
+                    "renewalPrice",
                     "typeOfDelivery",
                     "termsOfUse",
                   ],

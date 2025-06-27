@@ -6,7 +6,6 @@ const authService = new AuthService();
 const userService = new UserService();
 
 module.exports.register = catchAsync(async (req, res) => {
-  // TODO: se puede recibir el codigo de referido
   const { body, userType } = req;
 
   const newUser = await authService.register({ userData: body, userType });
@@ -67,6 +66,31 @@ module.exports.changePassword = catchAsync(async (req, res) => {
     code,
     password,
     userType: req.userType,
+  });
+  return res.status(200).json(result);
+});
+
+module.exports.sendEmailCodeChangeTelephone = catchAsync(async (req, res) => {
+  const { email } = req.body;
+  const { role: userType } = req.user;
+
+  const result = await authService.sendEmailCodeChangeTelephone({
+    email,
+    userType,
+  });
+
+  return res.status(200).json(result);
+});
+
+module.exports.changeTelephone = catchAsync(async (req, res) => {
+  const { code } = req.params;
+  const { telephone } = req.body;
+  const { role: userType } = req.user;
+
+  const result = await authService.changeTelephone({
+    code,
+    telephone,
+    userType,
   });
   return res.status(200).json(result);
 });

@@ -74,6 +74,30 @@ module.exports.changePassword = catchAsync(async (req, res) => {
   return res.status(200).json(result);
 });
 
+module.exports.sendEmailCodeChangeTelephone = catchAsync(async (req, res) => {
+  const { email } = req.body;
+  const { role: userType } = req.user;
+
+  const result = await authService.sendEmailCodeChangeTelephone({
+    email,
+    userType,
+  });
+  return res.status(200).json(result);
+});
+
+module.exports.changeTelephone = catchAsync(async (req, res) => {
+  const { code } = req.params;
+  const { telephone } = req.body;
+  const { role: userType } = req.user;
+
+  const result = await authService.changeTelephone({
+    code,
+    telephone,
+    userType,
+  });
+  return res.status(200).json(result);
+});
+
 module.exports.getAllProviders = catchAsync(async (req, res) => {
   const providers = await providerService.getAllProviders();
   return res.status(200).json({ providers });
