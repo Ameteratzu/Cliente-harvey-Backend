@@ -2,8 +2,11 @@ const AppError = require("../utils/appError.js");
 const db = require("./../database/models/index.js");
 
 class UserService {
-  async getAllUsers() {
-    return await db.Users.findAll();
+  async getAllUsers({ limit = 10, offset = 0 }) {
+    return await db.Users.findAndCountAll(
+      { limit, offset },
+      { attributes: ["username", "email", "role"] }
+    );
   }
 
   async getUserById(id) {

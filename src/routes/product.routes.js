@@ -6,7 +6,7 @@ const {
   deleteProduct,
   putProductOnSale,
   editProduct,
-  renewProduct,
+  getMyProducts,
 } = require("../controller/product.controller");
 const {
   validationCreateProduct,
@@ -22,9 +22,12 @@ const productRouter = express.Router();
 productRouter.get(
   "/",
   verifySession,
-  checkRole("user", "provider"),
+  checkRole("user", "provider", "admin"),
   getAllProducts
 );
+
+productRouter.get("/my", verifySession, checkRole("provider"), getMyProducts);
+
 productRouter.post(
   "/",
   verifySession,
@@ -35,12 +38,20 @@ productRouter.post(
 
 productRouter.patch(
   "/on-sale/:id",
+  verifySession,
+  checkRole("provider"),
   validationPutProductOnSale,
   putProductOnSale
 );
 
-productRouter.get("/:id", validationParamId, getProductById);
-productRouter.patch("/renew/:id", renewProduct);
+productRouter.get(
+  "/:id",
+  verifySession,
+  checkRole("user", "provider"),
+  validationParamId,
+  getProductById
+);
+
 productRouter.put(
   "/:id",
   verifySession,
@@ -48,6 +59,7 @@ productRouter.put(
   validationEditProduct,
   editProduct
 );
+
 productRouter.delete(
   "/:id",
   verifySession,

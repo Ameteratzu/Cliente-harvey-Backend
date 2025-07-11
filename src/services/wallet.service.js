@@ -5,8 +5,16 @@ const Decimal = require("decimal.js");
 class WalletService {
   getModel(userType) {
     const models = {
-      user: { model: db.Users, walletField: "userId" },
-      provider: { model: db.Providers, walletField: "providerId" },
+      user: {
+        model: db.Users,
+        walletField: "userId",
+        filters: ["deduct", "recharge", "earning", "refund", "purchase"],
+      },
+      provider: {
+        model: db.Providers,
+        walletField: "providerId",
+        filters: ["deduct", "recharge", "earning"],
+      },
     };
 
     const entry = models[userType];
@@ -58,15 +66,58 @@ class WalletService {
     }
   }
 
-  async approveRecharge(walletId, adminId) {
-    return await db.Wallet.update(
-      {
-        status: "accepted",
-        adminId,
-        updatedAt: new Date(),
-      },
-      { where: { id: walletId, operationType: "recharge" } }
-    );
+  async approveRecharge({ walletId, adminId, userType }) {
+    const transaction = await db.sequelize.transaction();
+
+    try {
+      if (!userType || !["user", "provider"].includes(userType)) {
+        throw new AppError(
+          "La query userType es requerida o no es válida",
+          400
+        );
+      }
+
+      const wallet = await db.Wallet.findOne({
+        where: { id: walletId, operationType: "recharge", status: "pending" },
+        transaction,
+      });
+
+      if (!wallet) {
+        throw new AppError("Recarga no encontrada", 404);
+      }
+
+      const idFromWallet =
+        userType === "user" ? wallet.userId : wallet.providerId;
+
+      if (!idFromWallet) {
+        throw new AppError(
+          "El tipo de usuario no coincide con el registro",
+          400
+        );
+      }
+
+      await wallet.update(
+        {
+          status: "accepted",
+          adminId,
+          updatedAt: new Date(),
+        },
+        { transaction }
+      );
+
+      await this.addBalance({
+        quantity: wallet.quantity,
+        id: idFromWallet,
+        userType,
+        transaction,
+      });
+
+      await transaction.commit();
+      return wallet;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   async rejectRecharge(walletId, adminId) {
@@ -79,6 +130,7 @@ class WalletService {
       { where: { id: walletId, operationType: "recharge" } }
     );
   }
+  // TODO: ELIMINAR RECARGA ACEPTADA
 
   async createMovement({
     quantity,
@@ -159,9 +211,39 @@ class WalletService {
     );
   }
 
+  async discountBalance({ quantity, id, transaction, userType }) {
+    const { model: Model } = this.getModel(userType);
+
+    console.log("🔍 discountBalance called with:", { quantity, id, userType });
+
+    const result = await Model.decrement("totalBalance", {
+      by: quantity,
+      where: { id },
+      transaction,
+    });
+
+    console.log("💰 discountBalance result:", result);
+    return result;
+  }
+
+  async addBalance({ quantity, id, transaction, userType }) {
+    const { model: Model } = this.getModel(userType);
+
+    console.log("🔍 addBalance called with:", { quantity, id, userType });
+
+    const result = await Model.increment("totalBalance", {
+      by: quantity,
+      where: { id },
+      transaction,
+    });
+
+    console.log("💰 addBalance result:", result);
+    return result;
+  }
+
   // CONSULTAS
   async getTotalBalance({ userId, userType, transaction }) {
-    const { model: Model, walletField } = this.getModel(userType);
+    const { model: Model } = this.getModel(userType);
 
     const account = await Model.findByPk(userId, { transaction });
 
@@ -169,37 +251,42 @@ class WalletService {
       throw new AppError("Cuenta no encontrado", 404);
     }
 
-    const transactions = await db.Wallet.findAll({
-      where: {
-        [walletField]: userId,
-        status: "accepted",
-      },
-      attributes: ["quantity", "operationType"],
-      transaction,
-    });
+    let totalBalance = new Decimal(account.totalBalance || 0);
 
-    return transactions.reduce((balance, tx) => {
-      const quantity = new Decimal(tx.quantity);
-
-      if (["recharge", "refund"].includes(tx.operationType)) {
-        return balance.plus(quantity);
-      } else if (["purchase", "deduct"].includes(tx.operationType)) {
-        return balance.minus(quantity);
-      }
-      return balance;
-    }, new Decimal(0));
+    return totalBalance;
   }
 
-  async getMovements(userId, options = {}) {
-    const { page = 1, limit = 10, operationType } = options;
-    const offset = (page - 1) * limit;
-
-    const whereClause = { userId };
-    if (operationType) {
-      whereClause.operationType = operationType;
+  async getMovements({ id, userType, operationType, limit = 10, offset = 0 }) {
+    if (!userType) {
+      throw new AppError("La query userType es requerida", 400);
     }
 
-    return await db.Wallet.findAndCountAll({
+    if (!["user", "provider"].includes(userType)) {
+      throw new AppError(
+        "Tipo de usuario no válido, debe ser 'user' o 'provider'",
+        400
+      );
+    }
+
+    const opTypes = ["recharge", "purchase", "refund", "earning", "deduct"];
+
+    if (operationType && !opTypes.includes(operationType)) {
+      throw new AppError("Tipo de operación no válido", 400);
+    }
+
+    const { walletField, filters } = this.getModel(userType);
+
+    const whereClause = {
+      [walletField]: id,
+    };
+
+    if (operationType) {
+      whereClause.operationType = operationType;
+    } else if (filters && filters.length > 0) {
+      whereClause.operationType = { [db.Sequelize.Op.in]: filters };
+    }
+
+    const { rows, count } = await db.Wallet.findAndCountAll({
       where: whereClause,
       include: [
         {
@@ -213,25 +300,39 @@ class WalletService {
           attributes: ["businessName", "username"],
         },
         {
-          model: db.ProductItem,
-          as: "productItem",
-          attributes: ["productItemName"],
-        },
-        {
           model: db.Admins,
           as: "admin",
           attributes: ["username"],
         },
       ],
-      order: [["createdAt", "DESC"]],
       limit,
       offset,
+      order: [["createdAt", "DESC"]],
     });
+
+    return { rows, count };
   }
 
-  async getRecharges(userId, status = null) {
+  async getMyMovements({ id, userType, limit = 10, offset = 0 }) {
+    return await this.getMovements({ id, userType, limit, offset });
+  }
+
+  async getRecharges({ id, status = null, limit = 10, offset = 0, userType }) {
+    if (!userType) {
+      throw new AppError("La query userType es requerida", 400);
+    }
+
+    if (!["user", "provider"].includes(userType)) {
+      throw new AppError(
+        "Tipo de usuario no válido, debe ser 'user' o 'provider'",
+        400
+      );
+    }
+
+    const { walletField } = this.getModel(userType);
+
     const whereClause = {
-      userId,
+      [walletField]: id,
       operationType: "recharge",
     };
 
@@ -239,7 +340,7 @@ class WalletService {
       whereClause.status = status;
     }
 
-    return await db.Wallet.findAll({
+    return await db.Wallet.findAndCountAll({
       where: whereClause,
       include: [
         {
@@ -248,11 +349,13 @@ class WalletService {
           attributes: ["username"],
         },
       ],
+      limit,
+      offset,
       order: [["createdAt", "DESC"]],
     });
   }
 
-  async getPurchases(userId) {
+  async getPurchases({ userId, limit = 10, offset = 0 }) {
     return await db.Wallet.findAll({
       where: {
         userId,
@@ -270,30 +373,8 @@ class WalletService {
           attributes: ["name", "price"],
         },
       ],
-      order: [["createdAt", "DESC"]],
-    });
-  }
-
-  // Para proveedores - ver sus ventas
-  async getProviderSales(providerId) {
-    return await db.Wallet.findAll({
-      where: {
-        providerId,
-        operationType: "purchase",
-        status: "accepted",
-      },
-      include: [
-        {
-          model: db.Users,
-          as: "user",
-          attributes: ["username", "email"],
-        },
-        {
-          model: db.ProductItem,
-          as: "productItem",
-          attributes: ["productItemName"],
-        },
-      ],
+      limit,
+      offset,
       order: [["createdAt", "DESC"]],
     });
   }

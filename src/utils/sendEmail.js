@@ -24,11 +24,11 @@ exports.sendEmail = (options) =>
     });
   });
 
-exports.sendEmailCode = async (user, code) => {
+exports.sendEmailCodeVerificationAccount = async (user, code) => {
   try {
     const verificationUrl = `${
       process.env.FRONTEND_URL
-    }/verify-email?code=${encodeURIComponent(code)}`;
+    }/verify-email?code=${encodeURIComponent(code)}?userType=${user.role}`;
 
     await exports.sendEmail({
       to: user.email,
@@ -36,7 +36,7 @@ exports.sendEmailCode = async (user, code) => {
       html: `<div style="font-family: Arial, sans-serif; color: #333; line-height: 1.4; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h1 style="font-size: 24px; margin-bottom: 10px; text-align: center;">
           <span style="color: #007bff;">¡Hola ${user.username}!</span><br>
-          Gracias por registrarte enMi control de cuentas streaming HN.
+          Gracias por registrarte en streaming HN.
         </h1>
   <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
           Por favor, verifica tu correo electrónico haciendo clic en el siguiente botón:
@@ -73,7 +73,7 @@ exports.sendEmailCode = async (user, code) => {
 exports.sendEmailCodeRecoverPassword = (user, code) => {
   const changePasswordUrl = `${
     process.env.FRONTEND_URL
-  }/change-password?code=${encodeURIComponent(code)}`;
+  }/change-password?code=${encodeURIComponent(code)}?userType=${user.role}`;
 
   try {
     return exports.sendEmail({
@@ -121,7 +121,7 @@ exports.sendEmailCodeRecoverPassword = (user, code) => {
 exports.sendEmailCodeChangeTelephone = (user, code) => {
   const changePasswordUrl = `${
     process.env.FRONTEND_URL
-  }/change-telephone?code=${encodeURIComponent(code)}`;
+  }/change-telephone?code=${encodeURIComponent(code)}?userType=${user.role}`;
 
   try {
     return exports.sendEmail({

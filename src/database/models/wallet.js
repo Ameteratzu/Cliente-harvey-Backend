@@ -61,6 +61,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       purchasingGroupCode: {
         type: DataTypes.STRING,
+        field: "purchasing_group_code",
       },
       operationDate: {
         type: DataTypes.DATE,

@@ -19,7 +19,7 @@ module.exports.rateProduct = catchAsync(async (req, res) => {
 });
 
 module.exports.getAverageRatingOfProduct = catchAsync(async (req, res) => {
-  const { productId } = req.params;
+  const { id: productId } = req.params;
 
   const averageRating = await ratingService.getAverageRatingOfProduct(
     productId
@@ -34,7 +34,7 @@ module.exports.getAverageRatingOfProduct = catchAsync(async (req, res) => {
 
 module.exports.getMyRating = catchAsync(async (req, res) => {
   const { id: userId } = req.user;
-  const { productId } = req.params;
+  const { id: productId } = req.params;
 
   const myRating = await ratingService.getMyRating({
     userId,
@@ -48,7 +48,7 @@ module.exports.getMyRating = catchAsync(async (req, res) => {
 });
 
 module.exports.getRatingCount = catchAsync(async (req, res) => {
-  const { productId } = req.params;
+  const { id: productId } = req.params;
 
   const ratingCount = await ratingService.getRatingCountOfProduct(productId);
 

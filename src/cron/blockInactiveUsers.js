@@ -7,41 +7,6 @@ const blockInactiveAccounts = async () => {
 
   try {
     console.log("⏳ Iniciando bloqueo de cuentas inactivas...");
-
-    // Bloquear Providers
-    const inactiveProviders = await db.Providers.findAll({
-      where: {
-        status: "active",
-        updatedAt: { [Op.lt]: sixtyDaysAgo },
-      },
-      include: [
-        {
-          model: db.Wallet,
-          as: "wallet",
-          required: false,
-          where: { createdAt: { [Op.gte]: sixtyDaysAgo } },
-        },
-        {
-          model: db.PublishedProducts,
-          as: "publishedProducts",
-          required: false,
-          where: { createdAt: { [Op.gte]: sixtyDaysAgo } },
-        },
-      ],
-    });
-
-    console.log({ inactiveProviders });
-
-    for (const provider of inactiveProviders) {
-      const noMovements = !provider.wallet?.length;
-
-      if (noMovements) {
-        provider.status = "blocked";
-        await provider.save();
-        console.log(`🔒 Proveedor bloqueado: ${provider.business_name}`);
-      }
-    }
-
     // Bloquear Users
     const inactiveUsers = await db.Users.findAll({
       where: {

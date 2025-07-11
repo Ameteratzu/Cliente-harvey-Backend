@@ -10,10 +10,14 @@ const {
   getMovements,
   rejectRecharge,
   getRecharges,
-  getProviderSales,
   getPurchases,
-  getUserMovements,
+  getMyMovements,
 } = require("../controller/wallet.controller");
+const {
+  validationRecharge,
+  validationParamId,
+  validationCreateRefund,
+} = require("../middlewares/validateInputErrors");
 
 const walletRouter = express.Router();
 
@@ -22,36 +26,34 @@ walletRouter.post(
   "/recharge",
   verifySession,
   checkRole("user", "provider"),
+  validationRecharge,
   balanceRecharge
 );
 
 // RECHAZAR SOLICITUD DE RECARGA - admin
 walletRouter.put(
-  "/reject-recharge/:walletId",
+  "/reject-recharge/:id",
   verifySession,
   checkRole("admin"),
+  validationParamId,
   rejectRecharge
 );
 
 // OBTENER TODAS LAS SOLICITUDES DE RECARGA - admin
 walletRouter.get(
-  "/recharges/:userId",
+  "/recharges/:id",
   verifySession,
   checkRole("admin"),
+  validationParamId,
   getRecharges
 );
-
-// admin
-/*
-TODO: Get / traer todo los movimientos
-TODO: Delete / Eleminar
-*/
 
 // REEMBOLSO
 walletRouter.post(
   "/refund",
   verifySession,
   checkRole("admin", "provider"),
+  validationCreateRefund,
   createRefund
 );
 
@@ -62,18 +64,21 @@ walletRouter.get(
   checkRole("user", "provider"),
   getMyBalance
 );
+
 walletRouter.get(
-  "/balance/:userId",
+  "/balance/:id",
   verifySession,
   checkRole("admin"),
+  validationParamId,
   getUserBalanceById
 );
 
 // OBTENER LOS MOVIMIENTOS DE UN USUARIO - admin
 walletRouter.get(
-  "/movements/:userId",
+  "/movements/:id",
   verifySession,
   checkRole("admin"),
+  validationParamId,
   getMovements
 );
 
@@ -82,32 +87,24 @@ walletRouter.get(
   "/movements",
   verifySession,
   checkRole("user", "provider"),
-  getUserMovements
+  getMyMovements
 );
-
-// OBTENER LOS MOVIMIENTOS DE TODOS LOS USUARIOS
 
 // APROBAR SOLICITUD DE RECARGA - admin
 walletRouter.put(
   "/recharge/:id/approve",
   verifySession,
   checkRole("admin"),
+  validationParamId,
   approveRecharge
-);
-
-// OBTENER VENTAS DE UN PROVEEDOR - admin y provider
-walletRouter.get(
-  "/get-provider-sales/:providerId",
-  verifySession,
-  checkRole("provider", "admin"),
-  getProviderSales
 );
 
 // OBTENER COMPRAS DE UN USUARIO - user y admin
 walletRouter.get(
-  "/purchases/:userId",
+  "/purchases/:id",
   verifySession,
   checkRole("user", "admin"),
+  validationParamId,
   getPurchases
 );
 

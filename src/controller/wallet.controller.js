@@ -23,8 +23,13 @@ module.exports.balanceRecharge = catchAsync(async (req, res) => {
 module.exports.approveRecharge = catchAsync(async (req, res) => {
   const { id: walletId } = req.params;
   const { id: adminId } = req.user;
+  const { userType } = req.query;
 
-  const result = await walletService.approveRecharge(walletId, adminId);
+  const result = await walletService.approveRecharge({
+    walletId,
+    adminId,
+    userType,
+  });
 
   if (result[0] === 0) {
     return res.status(404).json({
@@ -38,7 +43,7 @@ module.exports.approveRecharge = catchAsync(async (req, res) => {
 });
 
 module.exports.rejectRecharge = catchAsync(async (req, res) => {
-  const { walletId } = req.params;
+  const { id: walletId } = req.params;
   const { id: adminId } = req.user;
 
   const result = await walletService.rejectRecharge(walletId, adminId);
@@ -84,19 +89,21 @@ module.exports.createRefund = catchAsync(async (req, res) => {
 module.exports.getMyBalance = catchAsync(async (req, res) => {
   const { id: userId, role: userType } = req.user;
 
-  const balance = await walletService.getTotalBalance({ userId, userType });
+  const totalBalance = await walletService.getTotalBalance({
+    userId,
+    userType,
+  });
 
   res.status(200).json({
     message: "Saldo obtenido exitosamente",
     data: {
-      userId: parseInt(userId),
-      totalBalance: balance,
+      totalBalance: totalBalance.toNumber(),
     },
   });
 });
 
 module.exports.getUserBalanceById = catchAsync(async (req, res) => {
-  const { userId } = req.params;
+  const { id: userId } = req.params;
   const { type: userType } = req.query;
 
   if (!["user", "provider"].includes(type)) {
@@ -120,78 +127,99 @@ module.exports.getUserBalanceById = catchAsync(async (req, res) => {
 });
 
 module.exports.getMovements = catchAsync(async (req, res) => {
-  const { userId } = req.params;
-  const { page, limit, operationType } = req.query;
+  const { id: userId } = req.params;
+  const { page = 1, limit = 10, operationType, userType } = req.query;
 
-  const movements = await walletService.getMovements(userId, {
-    page: parseInt(page) || 1,
-    limit: parseInt(limit) || 10,
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  const { rows: movements, count } = await walletService.getMovements({
+    id: userId,
+    userType,
+    limit: parsedLimit,
+    offset,
     operationType,
   });
 
   res.status(200).json({
     message: "Movimientos obtenidos exitosamente",
-    data: movements,
+    results: movements.length,
+    total: count,
+    totalPages: Math.ceil(count / parsedLimit),
+    movements,
   });
 });
 
-module.exports.getUserMovements = catchAsync(async (req, res) => {
-  const { id: userId } = req.user;
-  const { page, limit, operationType } = req.query;
+module.exports.getMyMovements = catchAsync(async (req, res) => {
+  const { id, role: userType } = req.user;
+  const { page = 1, limit = 10, operationType } = req.query;
 
-  const movements = await walletService.getMovements(userId, {
-    page: parseInt(page) || 1,
-    limit: parseInt(limit) || 10,
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  const { rows: movements, count } = await walletService.getMovements({
+    id,
+    userType,
+    limit: parsedLimit,
+    offset,
     operationType,
   });
 
   res.status(200).json({
     message: "Movimientos obtenidos exitosamente",
-    data: movements,
+    results: movements.length,
+    total: count,
+    totalPages: Math.ceil(count / parsedLimit),
+    movements,
   });
 });
 
 module.exports.getRecharges = catchAsync(async (req, res) => {
-  const { userId } = req.params;
-  const { status } = req.query;
+  const { id } = req.params;
+  const { userType, status, page = 1, limit = 10 } = req.query;
 
-  const recharges = await walletService.getRecharges(userId, status);
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  const { rows: recharges, count } = await walletService.getRecharges({
+    id,
+    status,
+    limit: parsedLimit,
+    offset,
+    userType,
+  });
 
   res.status(200).json({
     message: "Recargas obtenidas exitosamente",
-    count: recharges.length,
-    data: recharges,
+    results: recharges.length,
+    total: count,
+    totalPages: Math.ceil(count / parsedLimit),
+    recharges,
   });
 });
 
 module.exports.getPurchases = catchAsync(async (req, res) => {
-  const { userId } = req.params;
+  const { id: userId } = req.params;
+  const { page = 1, limit = 10 } = req.query;
 
-  const purchases = await walletService.getPurchases(userId);
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  const { rows: purchases, count } = await walletService.getPurchases({
+    userId,
+    limit: parsedLimit,
+    offset,
+  });
 
   res.status(200).json({
     message: "Compras obtenidas exitosamente",
-    data: purchases,
-  });
-});
-
-// Para proveedores
-module.exports.getProviderSales = catchAsync(async (req, res) => {
-  const { providerId } = req.params;
-
-  const sales = await walletService.getProviderSales(providerId);
-
-  res.status(200).json({
-    message: "Ventas obtenidas exitosamente",
-    data: sales,
-  });
-});
-
-module.exports.getAllMovementsAllUsers = catchAsync(async (req, res) => {
-  const movements = await walletService.getAllMovementsAllUsers();
-
-  res.status(200).json({
-    message: "Movimientos obtenidos exitosamente",
-    data: movements,
+    results: purchases.length,
+    total: count,
+    totalPages: Math.ceil(count / parsedLimit),
+    purchases,
   });
 });

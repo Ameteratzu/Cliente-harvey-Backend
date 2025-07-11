@@ -23,14 +23,6 @@ module.exports.putProductOnSale = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { salePrice } = req.body;
 
-  const product = await productService.findProductById(id);
-  if (!product) {
-    return res.status(404).json({ message: "Producto no encontrado" });
-  }
-  if (!product.isPublished) {
-    return res.status(400).json({ message: "El producto no está publicado" });
-  }
-
   await productService.putProductOnSale(id, salePrice);
 
   return res
@@ -39,46 +31,47 @@ module.exports.putProductOnSale = catchAsync(async (req, res) => {
 });
 
 module.exports.getAllProducts = catchAsync(async (req, res) => {
-  const products = await productService.getAllProducts();
+  const { page = 1, limit = 10 } = req.query;
+
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  const { products, count } = await productService.getAllProducts({
+    limit: parsedLimit,
+    offset,
+  });
 
   return res.status(200).json({
+    page: parsedPage,
     results: products.length,
-    products: products.map((product) => {
-      return {
-        id: product.id,
-        productCode: product.productCode,
-        product: product.product,
-        provider: product.provider,
-        category: product.category,
-        quantity: product.quantity,
-        salePrice: product.salePrice,
-        isPublished: product.isPublished,
-        publishStartDate: product.publishStartDate,
-        publishEndDate: product.publishEndDate,
-        isOnSale: product.isOnSale,
-        stock: product.productItem.filter((p) => p.isPublished).length,
-        remaningDays: differenceInDays(
-          new Date(product.publishEndDate),
-          new Date()
-        ),
-        productItems: product.productItem,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt,
-      };
-    }),
+    total: count,
+    totalPages: Math.ceil(count / parsedLimit),
+    products,
   });
 });
 
-module.exports.renewProduct = catchAsync(async (req, res) => {
-  const { id } = req.params;
+module.exports.getMyProducts = catchAsync(async (req, res) => {
+  const { id: providerId } = req.user;
+  const { page = 1, limit = 10 } = req.query;
 
-  const findProduct = await productService.findProductById(id);
-  if (!findProduct) {
-    return res.status(404).json({ message: "Producto no encontrado" });
-  }
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
 
-  await productService.renewProduct(id, findProduct.publishEndDate);
-  return res.status(200).json({ message: "Producto renovado con éxito" });
+  const { products, count } = await productService.getMyProducts({
+    providerId,
+    limit: parsedLimit,
+    offset,
+  });
+
+  return res.status(200).json({
+    page: parsedPage,
+    results: products.length,
+    total: count,
+    totalPages: Math.ceil(count / parsedLimit),
+    products,
+  });
 });
 
 module.exports.getProductById = catchAsync(async (req, res) => {
@@ -118,17 +111,7 @@ module.exports.editProduct = catchAsync(async (req, res) => {
 module.exports.deleteProduct = catchAsync(async (req, res) => {
   const { id } = req.params;
 
-  const findProduct = await productService.findProductById(id);
-  if (!findProduct) {
-    return res.status(404).json({ message: "Producto no encontrado" });
-  }
-
-  if (findProduct.isPublished) {
-    return res
-      .status(400)
-      .json({ message: "No se puede eliminar un producto publicado" });
-  }
-
   await productService.deleteProductById(id);
+
   return res.status(200).json({ message: "Producto eliminado con éxito" });
 });

@@ -1,4 +1,5 @@
 const db = require("./../database/models/index.js");
+const AppError = require("../utils/appError.js");
 
 class ProviderService {
   async getAllProviders() {
@@ -6,7 +7,11 @@ class ProviderService {
   }
 
   async getProviderById(id) {
-    return await db.Providers.findOne({ where: { id } });
+    const provider = await db.Providers.findOne({ where: { id } });
+    if (!provider) {
+      throw new AppError("Proveedor no encontrado", 404);
+    }
+    return provider;
   }
 
   async createProvider(provider) {
@@ -16,13 +21,14 @@ class ProviderService {
   async findUserByEmail(email) {
     const provider = await db.Providers.findOne({ where: { email } });
     if (!provider) {
-      throw new Error("Usuario no encontrado");
+      throw new AppError("Proveedor no encontrado", 404);
     }
     return provider;
   }
 
   async deleteProviderById(id) {
-    return await db.Providers.destroy({ where: { id } });
+    const provider = await this.getProviderById(id);
+    return await provider.destroy();
   }
 }
 

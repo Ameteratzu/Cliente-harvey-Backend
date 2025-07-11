@@ -76,6 +76,12 @@ module.exports = (sequelize, DataTypes) => {
         unique: true,
         field: "code_provider",
       },
+      totalBalance: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0.0,
+        field: "total_balance",
+      },
       createdAt: {
         allowNull: false,
         type: DataTypes.DATE,

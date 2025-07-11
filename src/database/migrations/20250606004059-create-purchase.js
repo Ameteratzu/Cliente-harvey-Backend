@@ -59,7 +59,7 @@ module.exports = {
         allowNull: false,
         field: "renewal_price",
       },
-      purcahaseDate: {
+      purchaseDate: {
         type: Sequelize.DATE,
         allowNull: false,
         field: "purchase_date",
@@ -75,6 +75,10 @@ module.exports = {
       descriptionProblem: {
         type: Sequelize.TEXT,
         field: "description_problem",
+      },
+      supportType: {
+        type: Sequelize.ENUM("refund", "renewal", "problem"),
+        field: "support_type",
       },
       status: {
         type: Sequelize.ENUM(

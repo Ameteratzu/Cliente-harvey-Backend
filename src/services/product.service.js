@@ -2,12 +2,12 @@ const db = require("./../database/models/index.js");
 const AppError = require("../utils/appError.js");
 const WalletService = require("./wallet.service.js");
 const CategoryService = require("../services/category.service.js");
+const { differenceInDays } = require("date-fns/differenceInDays");
 
 class ProductService {
   constructor() {
     this.walletService = new WalletService();
     this.categoryService = new CategoryService();
-    this.publishCost = 1;
   }
 
   generateProductCode(productName) {
@@ -30,27 +30,47 @@ class ProductService {
   }
 
   async createProduct(productData) {
-    const { productName, categoryId } = productData;
+    const transaction = await db.sequelize.transaction();
+    try {
+      const { productName, categoryId } = productData;
 
-    const productCode = this.generateProductCode(productName);
+      const productCode = this.generateProductCode(productName);
 
-    const findProduct = await db.Product.findOne({ where: { productName } });
-    if (findProduct) {
-      return res.status(400).json({ message: "El producto ya existe" });
+      const findProduct = await db.Product.findOne({
+        where: { productName },
+        transaction,
+      });
+      if (findProduct) {
+        throw new AppError("El producto ya existe", 400);
+      }
+
+      const findCategory = await this.categoryService.findCategoryById(
+        categoryId,
+        transaction
+      );
+      if (!findCategory) {
+        throw new AppError("La categoría no existe", 400);
+      }
+
+      const createdProduct = await db.Product.create(
+        {
+          ...productData,
+          renewalPrice: productData.regularPrice,
+          productCode,
+        },
+        { transaction }
+      );
+
+      await transaction.commit();
+      return createdProduct;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
     }
-
-    const findCategory = await this.categoryService.findCategoryById(
-      categoryId
-    );
-    if (!findCategory) {
-      return res.status(404).json({ message: "Categoría no encontrada" });
-    }
-
-    return await db.Product.create({ ...productData, productCode });
   }
 
-  async getAllProducts() {
-    return await db.Product.findAll({
+  async getAllProducts({ limit = 10, offset = 0 }) {
+    const { count, rows } = await db.Product.findAndCountAll({
       include: [
         {
           model: db.Providers,
@@ -75,11 +95,112 @@ class ProductService {
           as: "productItem",
           //attributes: ["id"],
         },
+        {
+          model: db.ProductImages,
+          as: "images",
+          attributes: ["id", "url"],
+        },
       ],
+      limit,
+      offset,
+      order: [["createdAt", "DESC"]],
     });
+
+    const products = rows.map((product) => {
+      return {
+        id: product.id,
+        productName: product.productName,
+        productCode: product.productCode,
+        product: product.product,
+        provider: product.provider,
+        category: product.category,
+        quantity: product.quantity,
+        regularPrice: product.regularPrice,
+        salePrice: product.salePrice,
+        isPublished: product.isPublished,
+        publishStartDate: product.publishStartDate,
+        publishEndDate: product.publishEndDate,
+        isOnSale: product.isOnSale,
+        stock: product.productItem.filter((p) => p.isPublished).length,
+        remaningDays: differenceInDays(
+          new Date(product.publishEndDate),
+          new Date()
+        ),
+        images: product.images,
+        productItems: product.productItem,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+      };
+    });
+
+    return { products, count };
   }
 
-  // TODO: TRAER LOS PRODUCTOS DEL PROVIDER
+  async getMyProducts({ providerId, limit = 10, offset = 0 }) {
+    const { count, rows } = await db.Product.findAndCountAll({
+      where: {
+        providerId,
+      },
+      attributes: [
+        "id",
+        "productName",
+        "productCode",
+        "salePrice",
+        "regularPrice",
+        "duration",
+        "renewalPrice",
+        "isOnSale",
+        "typeOfDelivery",
+        "createdAt",
+        "updatedAt",
+      ],
+      include: [
+        {
+          model: db.ProductItem,
+          as: "productItem",
+          attributes: ["id", "productItemName", "status"],
+        },
+        {
+          model: db.ProductImages,
+          as: "images",
+          attributes: ["id", "url"],
+        },
+        {
+          model: db.Providers,
+          as: "provider",
+          attributes: ["id", "businessName", "username", "email", "telephone"],
+        },
+        {
+          model: db.Categories,
+          as: "category",
+          attributes: ["id", "category"],
+        },
+      ],
+      limit,
+      offset,
+      order: [["createdAt", "DESC"]],
+    });
+
+    const products = rows.map((prod) => ({
+      id: prod.id,
+      productName: prod.productName,
+      productCode: prod.productCode,
+      salePrice: prod.salePrice,
+      regularPrice: prod.regularPrice,
+      renewalPrice: prod.renewalPrice,
+      isOnSale: prod.isOnSale,
+      duration: prod.duration,
+      typeOfDelivery: prod.typeOfDelivery,
+      provider: prod.provider,
+      category: prod.category,
+      stock: prod.productItem.filter((p) => p.status === "published").length,
+      images: prod.images,
+      createdAt: prod.createdAt,
+      updatedAt: prod.updatedAt,
+    }));
+
+    return { products, count };
+  }
 
   async findProductById(id) {
     const product = await db.Product.findOne({ where: { id } });
@@ -92,29 +213,33 @@ class ProductService {
   }
 
   async editProduct(id, productData) {
-    return await db.Product.update(productData, { where: { id } });
+    const product = await this.findProductById(id);
+    return await product.update(productData);
   }
 
   async deleteProductById(id) {
-    return await db.Product.destroy({ where: { id } });
+    const product = await this.findProductById(id);
+
+    const isPublished = await db.PublishedProducts.findOne({
+      where: { productId: id },
+    });
+
+    if (isPublished) {
+      throw new AppError(
+        "No se puede eliminar porque el producto está publicado",
+        400
+      );
+    }
+
+    return await product.destroy();
   }
 
   async putProductOnSale(id, salePrice) {
-    return await db.Product.update(
-      { isOnSale: true, salePrice },
-      { where: { id } }
-    );
+    const product = await this.findProductById(id);
+    return await product.update({ isOnSale: true, salePrice });
   }
 
-  // async renewProduct(id, publishEndDate) {
-  //   const newPublishEndDate = addDays(publishEndDate, 30);
-  //   return await db.Product.update(
-  //     { publishEndDate: newPublishEndDate },
-  //     { where: { id } }
-  //   );
-  // }
-
-  // TODO: VA EN PRODUCT ITEM
+  // VA EN PRODUCT ITEM
   async unPublishProduct(id) {
     return await db.Product.update(
       { isPublished: false, publishEndDate: null, publishStartDate: null },

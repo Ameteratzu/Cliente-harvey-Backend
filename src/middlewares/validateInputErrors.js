@@ -6,7 +6,15 @@ const validFields = (req, res, next) => {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
-    return res.status(400).json({ status: "error", errors: errors.mapped() });
+    return res.status(400).json({
+      status: "error",
+      errors: errors.array().map((e) => {
+        return {
+          field: e.path,
+          message: e.msg,
+        };
+      }),
+    });
   }
 
   next();
@@ -32,7 +40,6 @@ module.exports.validationRegisterUser = [
     .escape(),
   body("email")
     .isEmail()
-    .normalizeEmail()
     .withMessage("El email es obligatorio y debe ser válido")
     .custom(async (value) => {
       const removeSpace = value.replace(/\s/g, "");
@@ -82,7 +89,6 @@ module.exports.validationRegisterUser = [
 module.exports.validationLogin = [
   body("email")
     .isEmail()
-    .normalizeEmail()
     .withMessage("El email es obligatorio y debe ser válido"),
   body("password").notEmpty().withMessage("La contraseña es obligatoria"),
   validFields,
@@ -96,7 +102,6 @@ module.exports.validationConfirmAccount = [
 module.exports.validationSendEmailCodeRecover = [
   body("email")
     .isEmail()
-    .normalizeEmail()
     .withMessage("El email es obligatorio y debe ser válido"),
   validFields,
 ];
@@ -164,7 +169,6 @@ module.exports.validationRegisterProvider = [
     .escape(),
   body("email")
     .isEmail()
-    .normalizeEmail()
     .withMessage("El email es obligatorio y debe ser válido")
     .custom(async (value) => {
       const removeSpace = value.replace(/\s/g, "");
@@ -229,7 +233,6 @@ module.exports.validationRegisterAdmin = [
     }),
   body("email")
     .isEmail()
-    .normalizeEmail()
     .withMessage("El email es obligatorio y debe ser válido")
     .custom(async (value) => {
       const removeSpace = value.replace(/\s/g, "");
@@ -290,73 +293,22 @@ module.exports.validationEditCategory = [
     .notEmpty()
     .withMessage("La categoría es obligatoria")
     .escape(),
-  param("id").notEmpty().withMessage("Id no es válido"),
+  param("id")
+    .notEmpty()
+    .withMessage("Id no es válido")
+    .isInt()
+    .withMessage("Id no es válido"),
   validFields,
 ];
 
 // validate product
-module.exports.validationCreateProduct = [
-  body("productName")
-    .notEmpty()
-    .withMessage("El nombre del producto es obligatorio")
-    .escape(),
-  body("termsOfUse")
-    .notEmpty()
-    .withMessage("Las condiciones de uso son obligatorias")
-    .escape(),
-  body("duration") // duracion en dias - enteros
-    .notEmpty()
-    .withMessage("La duración es obligatoria")
-    .escape(),
-  body("publishStartDate") // opcional
-    .optional()
-    .if(body("publishStartDate").exists())
-    .isDate()
-    .withMessage("La fecha de inicio de publicación debe ser una fecha")
-    .escape(),
-  body("publishEndDate") // opcional
-    .optional()
-    .if(body("publishEndDate").exists())
-    .isDate()
-    .withMessage("La fecha de fin de publicación debe ser una fecha")
-    .escape(),
-  body("regularPrice")
-    .isNumeric()
-    .withMessage("El precio regular debe ser un número")
-    .escape(),
-  body("salePrice")
-    .optional()
-    .if(body("salePrice").exists())
-    .isNumeric()
-    .withMessage("El precio de venta debe ser un número")
-    .escape(),
-  body("renewalPrice")
-    .optional()
-    .if(body("renewalPrice").exists())
-    .isNumeric()
-    .withMessage("El precio de renovación debe ser un número")
-    .escape(),
-  body("typeOfDelivery")
-    .notEmpty()
-    .withMessage("El tipo de entrega es obligatorio")
-    .isIn(["selfDelivery", "uponRequest"])
-    .withMessage("El tipo de entrega debe ser 'selfDelivery' o 'uponRequest'")
-    .escape(),
-  body("productUrl")
-    .notEmpty()
-    .withMessage("La URL es obligatoria")
-    .isString()
-    .withMessage("La URL debe ser una cadena de texto")
-    .escape(),
-  body("categoryId")
-    .notEmpty()
-    .withMessage("La categoría es obligatoria")
-    .escape(),
-  validFields,
-];
 
 module.exports.validationPutProductOnSale = [
-  param("id").notEmpty().withMessage("Id no es válido"),
+  param("id")
+    .notEmpty()
+    .withMessage("Id no es válido")
+    .isInt()
+    .withMessage("Id no es válido"),
   body("salePrice")
     .isNumeric()
     .withMessage("El precio de venta debe ser un número")
@@ -409,5 +361,354 @@ module.exports.validationEditProduct = [
 
   body("url").optional().isURL().withMessage("La URL debe ser válida"),
 
+  validFields,
+];
+
+// CART VALIDATION
+module.exports.validationAddToCart = [
+  body("productId")
+    .notEmpty()
+    .withMessage("El producto es obligatorio")
+    .isInt()
+    .withMessage("El producto debe ser un entero"),
+  validFields,
+];
+
+// FAVORITE VALIDATION
+module.exports.validationAddToFavorite = [
+  body("productId")
+    .notEmpty()
+    .withMessage("El producto es obligatorio")
+    .isInt()
+    .withMessage("El producto debe ser un entero"),
+  validFields,
+];
+
+// PRODUCT ITEM VALIDATION
+module.exports.validationCreateProductItem = [
+  body("username")
+    .notEmpty()
+    .withMessage("El nombre de usuario es obligatorio")
+    .isLength({ min: 6 })
+    .withMessage("El nombre de usuario debe tener entre 8 y 12 caracteres")
+    .escape(),
+  body("password")
+    .notEmpty()
+    .withMessage("La contraseña es obligatoria")
+    .isLength({ min: 8 })
+    .withMessage("La contraseña debe tener al menos 8 caracteres")
+    .escape(),
+  body("url")
+    .optional({ checkFalsy: true }) // permite que esté vacío o no enviado
+    .isURL()
+    .withMessage("La URL debe ser válida")
+    .escape(),
+  body("productId")
+    .notEmpty()
+    .withMessage("El producto es obligatorio")
+    .isInt()
+    .withMessage("El producto debe ser un entero"),
+  validFields,
+];
+
+// PRODUCT VALIDATION
+module.exports.validationCreateProduct = [
+  body("categoryId")
+    .notEmpty()
+    .withMessage("La categoría es obligatoria")
+    .isInt()
+    .withMessage("La categoría debe ser un entero"),
+  body("productName")
+    .notEmpty()
+    .withMessage("El nombre del producto es obligatorio")
+    .isString()
+    .withMessage("El nombre del producto debe ser texto")
+    .escape(),
+  body("termsOfUse")
+    .notEmpty()
+    .withMessage("Los términos de uso son obligatorios")
+    .isString()
+    .withMessage("Los términos de uso deben ser texto")
+    .escape(),
+  body("regularPrice")
+    .notEmpty()
+    .withMessage("El precio regular es obligatorio")
+    .isFloat({ min: 0 })
+    .withMessage("El precio regular debe ser un número positivo"),
+  body("duration")
+    .notEmpty()
+    .withMessage("La duración es obligatoria")
+    .isInt({ min: 1 })
+    .withMessage("La duración debe ser un número entero positivo"),
+  body("typeOfDelivery")
+    .notEmpty()
+    .withMessage("El tipo de entrega es obligatorio")
+    .isIn(["selfDelivery", "uponRequest"])
+    .withMessage("El tipo de entrega debe ser 'selfDelivery' o 'uponRequest'")
+    .escape(),
+  validFields,
+];
+
+// PROVIDER DISCOUNT VALIDATION
+module.exports.validationCreateProviderDiscount = [
+  body("name")
+    .notEmpty()
+    .withMessage("El nombre es obligatorio")
+    .isIn(["publication_price", "withdrawal"])
+    .withMessage("El nombre debe ser 'publication_price' o 'withdrawal'")
+    .escape(),
+  body("percentage")
+    .notEmpty()
+    .withMessage("El porcentaje es obligatorio")
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("El porcentaje debe ser un número entre 0 y 100"),
+  body("quantity")
+    .notEmpty()
+    .withMessage("La cantidad es obligatoria")
+    .isFloat({ min: 0 })
+    .withMessage("La cantidad debe ser un número positivo"),
+  body("providerId")
+    .optional()
+    .isInt()
+    .withMessage("El ID del proveedor debe ser un número entero"),
+  validFields,
+];
+
+module.exports.validationEditProviderDiscount = [
+  param("id")
+    .notEmpty()
+    .withMessage("El ID es obligatorio")
+    .isInt()
+    .withMessage("El ID debe ser un número entero"),
+  body("name")
+    .optional()
+    .isIn(["publication_price", "withdrawal"])
+    .withMessage("El nombre debe ser 'publication_price' o 'withdrawal'")
+    .escape(),
+  body("percentage")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("El porcentaje debe ser un número entre 0 y 100"),
+  body("quantity")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("La cantidad debe ser un número positivo"),
+  body("providerId")
+    .optional()
+    .isInt()
+    .withMessage("El ID del proveedor debe ser un número entero"),
+  validFields,
+];
+
+// PROVIDER VALIDATION
+module.exports.validationChangeTelephone = [
+  body("telephone")
+    .notEmpty()
+    .withMessage("El número de teléfono es obligatorio")
+    .isLength({ min: 10 })
+    .withMessage("El número de teléfono debe tener al menos 10 caracteres")
+    .escape(),
+  validFields,
+];
+
+// PUBLISHED PRODUCTS VALIDATION
+module.exports.validationCreatePublishedProduct = [
+  body("productId")
+    .notEmpty()
+    .withMessage("El producto es obligatorio")
+    .isInt()
+    .withMessage("El producto debe ser un entero"),
+  body("publishedEndDate")
+    .notEmpty()
+    .withMessage("La fecha de finalización es obligatoria")
+    .isDate()
+    .withMessage("La fecha de finalización debe ser una fecha"),
+  validFields,
+];
+
+// PURCHASE DISCOUNT VALIDATION
+module.exports.validationCreatePurchaseDiscount = [
+  body("percentageDiscount")
+    .notEmpty()
+    .withMessage("El porcentaje de descuento es obligatorio")
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("El porcentaje de descuento debe ser un número entre 0 y 100"),
+  body("quantityProducts")
+    .notEmpty()
+    .withMessage("La cantidad es obligatoria")
+    .isFloat({ min: 0 })
+    .withMessage("La cantidad debe ser un número positivo"),
+  body("nameDiscount")
+    .notEmpty()
+    .withMessage("El nombre es obligatorio")
+    .isString()
+    .withMessage("El nombre debe ser texto")
+    .escape(),
+  validFields,
+];
+
+module.exports.validationEditPurchaseDiscount = [
+  param("id")
+    .notEmpty()
+    .withMessage("El ID es obligatorio")
+    .isInt()
+    .withMessage("El ID debe ser un número entero"),
+  body("percentageDiscount")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("El porcentaje de descuento debe ser un número entre 0 y 100"),
+  body("quantityProducts")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("La cantidad debe ser un número positivo"),
+  body("nameDiscount")
+    .optional()
+    .isString()
+    .withMessage("El nombre debe ser texto")
+    .escape(),
+  validFields,
+];
+
+// PURCHASE VALIDATION
+module.exports.validationCreatePurchase = [
+  body("productItemid")
+    .notEmpty()
+    .withMessage("El producto es obligatorio")
+    .isInt()
+    .withMessage("El producto debe ser un entero"),
+  body("providerId")
+    .notEmpty()
+    .withMessage("El proveedor es obligatorio")
+    .isInt()
+    .withMessage("El proveedor debe ser un entero"),
+  body("duration")
+    .notEmpty()
+    .withMessage("La duración es obligatoria")
+    .isInt({ min: 1 })
+    .withMessage("La duración debe ser un número entero positivo"),
+  body("amount")
+    .notEmpty()
+    .withMessage("El precio es obligatorio")
+    .isFloat({ min: 0 })
+    .withMessage("El precio debe ser un número positivo"),
+  body("renewalPrice")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("El precio de renovación debe ser un número positivo"),
+  ,
+  validFields,
+];
+
+module.exports.validationSendSupport = [
+  param("id")
+    .notEmpty()
+    .withMessage("El ID es obligatorio")
+    .isInt()
+    .withMessage("El ID debe ser un número entero"),
+  body("descriptionProblem")
+    .optional()
+    .isString()
+    .withMessage("La descripción del problema debe ser texto"),
+  validFields,
+];
+
+module.exports.validationSolveSupport = [
+  param("id")
+    .notEmpty()
+    .withMessage("El ID es obligatorio")
+    .isInt()
+    .withMessage("El ID debe ser un número entero"),
+  body("note")
+    .optional()
+    .isString()
+    .withMessage("La descripción de la solución debe ser texto"),
+  validFields,
+];
+
+module.exports.validationAccepRenewal = [
+  body("purchaseIds")
+    .optional()
+    .isArray()
+    .withMessage("La lista de compras es obligatoria")
+    .isInt({ min: 1 })
+    .withMessage("La lista de compras debe ser un número entero"),
+  validFields,
+];
+
+module.exports.validationRequestRefund = [
+  param("id")
+    .notEmpty()
+    .withMessage("El ID es obligatorio")
+    .isInt()
+    .withMessage("El ID debe ser un número entero"),
+  body("descriptionProblem")
+    .optional()
+    .isString()
+    .withMessage("La descripción del problema debe ser texto"),
+  validFields,
+];
+
+// RATING VALIDATION
+module.exports.validationCreateRating = [
+  body("productId")
+    .notEmpty()
+    .withMessage("El producto es obligatorio")
+    .isInt()
+    .withMessage("El producto debe ser un entero"),
+  body("rating")
+    .notEmpty()
+    .withMessage("La calificación es obligatoria")
+    .isInt({ min: 1, max: 5 })
+    .withMessage("La calificación debe ser un número entre 1 y 5"),
+  validFields,
+];
+
+// REFERRALS VALIDATION
+module.exports.validationCreateReferral = [
+  body("referralUserId")
+    .notEmpty()
+    .withMessage("El usuario es obligatorio")
+    .isInt()
+    .withMessage("El usuario debe ser un entero"),
+  validFields,
+];
+
+// WALLET VALIDATION
+module.exports.validationRecharge = [
+  body("quantity")
+    .notEmpty()
+    .withMessage("La cantidad es obligatoria")
+    .isFloat({ min: 0 })
+    .withMessage("La cantidad debe ser un número positivo"),
+  validFields,
+];
+
+module.exports.validationCreateRefund = [
+  //   const { quantity, description, userId, providerId, productItemId, adminId } =req.body;
+  body("quantity")
+    .notEmpty()
+    .withMessage("La cantidad es obligatoria")
+    .isFloat({ min: 0 })
+    .withMessage("La cantidad debe ser un número positivo"),
+  body("description")
+    .optional()
+    .isString()
+    .withMessage("La descripción debe ser texto"),
+  body("userId")
+    .optional()
+    .isInt()
+    .withMessage("El ID del usuario debe ser un número entero"),
+  body("providerId")
+    .optional()
+    .isInt()
+    .withMessage("El ID del proveedor debe ser un número entero"),
+  body("productItemId")
+    .optional()
+    .isInt()
+    .withMessage("El ID del producto debe ser un número entero"),
+  body("adminId")
+    .optional()
+    .isInt()
+    .withMessage("El ID del administrador debe ser un número entero"),
   validFields,
 ];

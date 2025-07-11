@@ -25,30 +25,50 @@ class CartService {
 
   // Limpiar items expirados automáticamente
   async cleanExpiredItems() {
+    const expirationDate = new Date(
+      Date.now() - this.RESERVATION_TIME_MINUTES * 60 * 1000
+    );
+
     const expiredItems = await db.ProductsInCarts.findAll({
+      where: {
+        createdAt: {
+          [db.Sequelize.Op.lt]: expirationDate,
+        },
+      },
       include: [
         {
           model: db.ProductItem,
           as: "productItem",
           where: {
-            status: {
-              [db.Sequelize.Op.in]: ["purchased", "inactive", "unpublished"],
-            },
+            status: "reserved", // solo los reservados
           },
         },
       ],
     });
 
-    // eliminar expirados
-    const deletedCount = await db.ProductsInCarts.destroy({
-      where: {
-        id: {
-          [db.Sequelize.Op.in]: expiredItems.map((item) => item.id),
-        },
-      },
-    });
+    const itemIds = expiredItems.map((item) => item.id);
+    const productItemIds = expiredItems.map((item) => item.productItemId);
 
-    return deletedCount;
+    if (itemIds.length > 0) {
+      // Devolver los items al stock
+      await db.ProductItem.update(
+        { status: "published" },
+        {
+          where: {
+            id: { [db.Sequelize.Op.in]: productItemIds },
+          },
+        }
+      );
+
+      // Eliminar del carrito
+      await db.ProductsInCarts.destroy({
+        where: {
+          id: { [db.Sequelize.Op.in]: itemIds },
+        },
+      });
+    }
+
+    return itemIds.length;
   }
 
   async addToCart({ userId, productId }) {
@@ -142,11 +162,13 @@ class CartService {
             {
               model: db.ProductItem,
               as: "productItem",
+              attributes: ["id", "productItemName"],
               include: [
                 {
                   model: db.Product,
                   as: "product",
                   attributes: [
+                    "id",
                     "productName",
                     "duration",
                     "salePrice",
@@ -154,6 +176,13 @@ class CartService {
                     "renewalPrice",
                     "typeOfDelivery",
                     "termsOfUse",
+                  ],
+                  include: [
+                    {
+                      model: db.ProductItem,
+                      as: "productItem",
+                      attributes: ["id", "status"],
+                    },
                   ],
                 },
               ],
@@ -185,7 +214,26 @@ class CartService {
       id: cart.id,
       totalAmount: total.toNumber(),
       itemsCount: cart.productsInCarts.length,
-      items: cart.productsInCarts,
+      items: cart.productsInCarts.map((item) => ({
+        id: item.id,
+        productItem: {
+          id: item.productItemId,
+          productItemName: item.productItem.productItemName,
+          product: {
+            id: item.productItem.product.id,
+            productName: item.productItem.product.productName,
+            duration: item.productItem.product.duration,
+            salePrice: item.productItem.product.salePrice,
+            regularPrice: item.productItem.product.regularPrice,
+            renewalPrice: item.productItem.product.renewalPrice,
+            typeOfDelivery: item.productItem.product.typeOfDelivery,
+            termsOfUse: item.productItem.product.termsOfUse,
+            stock: item.productItem.product.productItem.filter(
+              (item) => item.status === "published"
+            ).length,
+          },
+        },
+      })),
     };
   }
 
@@ -419,7 +467,7 @@ class CartService {
 
       // Crear un mapa para acceso rápido a precios por ítem
       const priceMap = new Map(
-        itemPrices.map((item) => [item.itemId, item.finalPrice.toNumber()])
+        itemPrices.map((item) => [item.itemId, item.finalPrice])
       );
 
       for (const cartItem of cart.items) {
@@ -435,16 +483,26 @@ class CartService {
           );
         }
 
+        if (cartItem.productItem.product.duration === 0) {
+          throw new AppError(
+            `El producto ${cartItem.productItem.product.productName} no tiene duración`,
+            400
+          );
+        }
+
         const expirationDate = addDays(
           purchaseDate,
           cartItem.productItem.product.duration
         );
 
         // Usar el precio calculado (con descuento si aplica)
-        const finalPrice = priceMap.get(cartItem.id) || cartItem.price;
+        const finalPrice = (
+          priceMap.get(cartItem.id) || new Decimal(cartItem.price)
+        ).toNumber();
 
+        // RESTAR SALDO AL USUARIO
         await this.walletService.createMovement({
-          quantity: finalPrice, // Usar precio con descuento
+          quantity: finalPrice,
           description: `Compra: ${cartItem.productItem.product.productName}`,
           userId,
           providerId: cartItem.productItem.providerId,
@@ -452,14 +510,29 @@ class CartService {
           transaction,
         });
 
+        await this.walletService.discountBalance({
+          quantity: finalPrice,
+          id: userId,
+          transaction,
+          userType: "user",
+        });
+
+        // SUMAR SALDO AL PROVEEDOR
         await this.walletService.createMovement({
-          quantity: finalPrice, // Usar precio con descuento
+          quantity: finalPrice,
           description: `Venta: ${cartItem.productItem.product.productName}`,
           providerId: cartItem.productItem.providerId,
           productItemId: cartItem.productItemId,
           operationType: "earning",
           status: "accepted",
           transaction,
+        });
+
+        await this.walletService.addBalance({
+          quantity: finalPrice,
+          id: cartItem.productItem.providerId,
+          transaction,
+          userType: "provider",
         });
 
         await db.ProductItem.update(
@@ -486,7 +559,7 @@ class CartService {
             providerId: cartItem.productItem.providerId,
             duration: cartItem.productItem.product.duration,
             renewalPrice: cartItem.productItem.product.renewalPrice,
-            purcahaseDate: purchaseDate,
+            purchaseDate: purchaseDate,
             expirationDate,
             status: "purchased",
           },
@@ -502,7 +575,7 @@ class CartService {
       return {
         message: "Compra realizada exitosamente",
         totalPaid: totalAmount,
-        originalAmount, // TODO: Corregir calculo
+        originalAmount,
         discount: discountAmount,
         purchases,
       };

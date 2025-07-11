@@ -40,7 +40,7 @@ const errorHandler = (err, req, res, next) => {
   console.error("ERROR 💥:", err);
   res.status(500).json({
     status: "error",
-    message: "Algo salió mal en el servidor",
+    message: err.message || "Algo salió mal en el servidor",
   });
 };
 

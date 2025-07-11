@@ -1,6 +1,7 @@
 const db = require("../database/models/index.js");
 const { toZonedTime } = require("date-fns-tz");
 const { addDays } = require("date-fns");
+const AppError = require("../utils/appError.js");
 
 class AdminService {
   async getAllAdmins() {
@@ -19,7 +20,10 @@ class AdminService {
   }
 
   async getAdminById(id) {
-    const admin = await db.Admins.findOne({ where: { id } });
+    const admin = await db.Admins.findOne({
+      where: { id },
+      attributes: ["id", "username", "email", "role", "telephone", "createdAt"],
+    });
     if (!admin) {
       throw new AppError("Admin no encontrado", 404);
     }

@@ -4,10 +4,6 @@ module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
       User.hasMany(models.Referrals, {
-        foreignKey: "userId",
-        as: "referrals",
-      });
-      User.hasMany(models.Referrals, {
         foreignKey: "referralUserId",
         as: "referralUsers",
       });
@@ -66,6 +62,12 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         unique: true,
         field: "code_user",
+      },
+      totalBalance: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0.0,
+        field: "total_balance",
       },
       createdAt: {
         allowNull: false,

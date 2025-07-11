@@ -22,16 +22,16 @@ module.exports = {
 
     // Verificar que todos los registros necesarios existen
     if (!streamingCat) {
-      throw new Error('Streaming category not found');
+      throw new Error("Streaming category not found");
     }
     if (!gamingCat) {
-      throw new Error('Gaming category not found');
+      throw new Error("Gaming category not found");
     }
     if (!netflixProv) {
-      throw new Error('Netflix provider not found');
+      throw new Error("Netflix provider not found");
     }
     if (!steamProv) {
-      throw new Error('Steam provider not found');
+      throw new Error("Steam provider not found");
     }
 
     return queryInterface.bulkInsert(
@@ -55,17 +55,17 @@ module.exports = {
         },
         // Producto Steam
         {
-          product_code: "STEAM-50",
-          product_name: "Steam Wallet $50",
-          terms_of_use: "Código digital para cartera Steam",
-          duration: 0, // Producto de un solo uso
+          product_code: "AMAZON-PRIME",
+          product_name: "Amazon Prime",
+          terms_of_use: "Código digital para Amazon Prime",
+          duration: 30,
           is_on_sale: true,
           regular_price: 50.0,
           sale_price: 45.0,
-          renewal_price: 0,
+          renewal_price: 50.0,
           provider_id: steamProv.id,
           category_id: gamingCat.id,
-          type_of_delivery: "uponRequest",
+          type_of_delivery: "selfDelivery",
           created_at: new Date(),
           updated_at: new Date(),
         },

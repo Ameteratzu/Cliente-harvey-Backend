@@ -8,16 +8,28 @@ const {
   getReferrals,
   deleteReferral,
 } = require("../controller/referrals.controller.js");
+const {
+  validationParamId,
+  validationCreateReferral,
+} = require("../middlewares/validateInputErrors.js");
 
 const referralRouter = express.Router();
 
-referralRouter.post("/", verifySession, checkRole("user"), createReferral);
-referralRouter.get("/", verifySession, checkRole("user"), getMyReferrals);
-referralRouter.get("/:id", verifySession, checkRole("admin"), getReferrals);
+referralRouter.post(
+  "/",
+  verifySession,
+  checkRole("user"),
+  validationCreateReferral,
+  createReferral
+);
+
+referralRouter.get("/my", verifySession, checkRole("user"), getMyReferrals);
+
 referralRouter.delete(
   "/:id",
   verifySession,
   checkRole("admin", "user"),
+  validationParamId,
   deleteReferral
 );
 

@@ -7,30 +7,59 @@ module.exports.createPublishedProduct = catchAsync(async (req, res) => {
   const { role, id } = req.user;
   const { body } = req;
 
-  await publishedProductsService.createPublishedProduct({ body, role, id });
+  const result = await publishedProductsService.createPublishedProduct({
+    body,
+    role,
+    id,
+  });
 
-  return res.status(200).json({ message: "Producto publicado con éxito" });
+  return res.status(200).json(result);
 });
 
 module.exports.getMyPublishedProducts = catchAsync(async (req, res) => {
   const { id: providerId } = req.user;
+  const { page = 1, limit = 10 } = req.query;
 
-  const publishedProducts = await publishedProductsService.getPublishedProducts(
-    providerId
-  );
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
 
-  return res
-    .status(200)
-    .json({ data: publishedProducts, results: publishedProducts.length });
+  const { publishedProducts, count } =
+    await publishedProductsService.getMyPublishedProducts({
+      providerId,
+      limit: parsedLimit,
+      offset,
+    });
+
+  return res.status(200).json({
+    page: parsedPage,
+    results: publishedProducts.length,
+    total: count,
+    totalPages: Math.ceil(count / parsedLimit),
+    publishedProducts,
+  });
 });
 
 module.exports.getAllPublishedProducts = catchAsync(async (req, res) => {
-  const publishedProducts =
-    await publishedProductsService.getAllPublishedProducts();
+  const { page = 1, limit = 10 } = req.query;
 
-  return res
-    .status(200)
-    .json({ data: publishedProducts, results: publishedProducts.length });
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  const { publishedProducts, count } =
+    await publishedProductsService.getAllPublishedProducts({
+      limit: parsedLimit,
+      offset,
+    });
+
+  return res.status(200).json({
+    page: parsedPage,
+    results: publishedProducts.length,
+    total: count,
+    totalPages: Math.ceil(count / parsedLimit),
+    publishedProducts,
+  });
 });
 
 module.exports.get;

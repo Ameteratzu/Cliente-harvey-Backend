@@ -5,14 +5,17 @@ class ReferralService {
     await db.Referrals.create(referralData);
   }
 
-  async getReferrals(userId) {
-    return await db.Referrals.findAll({
+  async getReferrals({ userId, limit = 10, offset }) {
+    return await db.Referrals.findAndCountAll({
       where: { userId },
       include: {
         model: db.Users,
         as: "referralUser",
         attributes: ["username", "email", "role"],
       },
+      limit,
+      offset,
+      order: [["createdAt", "DESC"]],
     });
   }
 

@@ -4,7 +4,7 @@ const AppError = require("../utils/appError.js");
 const { hashPassword, comparePassword } = require("../utils/bcrypt");
 const {
   sendEmailCodeRecoverPassword,
-  sendEmailCode,
+  sendEmailCodeVerificationAccount,
   sendEmailCodeChangeTelephone,
 } = require("../utils/sendEmail");
 const { generateUserCode, tokenSing } = require("../utils/token");
@@ -88,7 +88,7 @@ class AuthService {
       // Generar código de verificación de email
       const emailCode = crypto.randomBytes(32).toString("hex");
 
-      await sendEmailCode(newUser, emailCode);
+      await sendEmailCodeVerificationAccount(newUser, emailCode);
 
       await db.EmailCode.create(
         {
@@ -107,59 +107,61 @@ class AuthService {
     }
   }
 
-  async login({ email, password, userType, req }) {
+  async login({ email, password, userType, userAgent, ipAddress }) {
     const { model: Model } = this.getModel(userType);
 
-    const user = await Model.findOne({
+    const account = await Model.findOne({
       where: { email },
     });
-    if (!user) {
+    if (!account) {
       throw new AppError("Usuario no encontrado", 404);
     }
 
-    if (user.status === "pending_verification") {
+    if (account.status === "pending_verification") {
       throw new AppError("Cuenta no confirmada, revisa tu correo", 400);
     }
 
-    if (user.status === "blocked") {
+    if (account.status === "blocked") {
       throw new AppError(
         "Cuenta bloqueada, contacte con el administrador",
         401
       );
     }
 
-    const isValidPassword = await comparePassword(password, user.password);
+    const isValidPassword = await comparePassword(password, account.password);
     if (!isValidPassword) {
       throw new AppError("Contraseña incorrecta", 400);
     }
 
-    const token = await tokenSing(user);
+    const token = await tokenSing(account);
 
     await db.UserSession.create({
       token,
-      userId: user.id,
+      userId: account.id,
       userType,
-      userAgent: req.headers["user-agent"],
-      ipAddress: req.ip,
+      userAgent,
+      ipAddress,
     });
 
-    const userPayload = {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      role: user.role,
-      codeUser: user.codeUser,
+    const accountPayload = {
+      id: account.id,
+      email: account.email,
+      username: account.username,
+      role: account.role,
+      codeUser: account.codeUser,
+      totalBalance: account.totalBalance,
     };
 
-    return { user: userPayload, token };
+    return { auth: accountPayload, token };
   }
 
-  async logout({ userId, userType, res }) {
+  async logout({ id, userType, res }) {
     // invalidando todas las sesiones
     await db.UserSession.update(
       { isValid: false },
-      { where: { userId, userType } }
+      { where: { userId: id, userType } }
     );
+
     res.clearCookie("auth_token");
 
     return { message: "Sessión cerrada con éxito" };
@@ -190,19 +192,20 @@ class AuthService {
   async sendEmailCodeRecover({ email, userType }) {
     const code = crypto.randomBytes(32).toString("hex");
 
-    const user = await this.findByEmail(email, userType);
-    if (user.status === "pending_verification") {
+    const account = await this.findByEmail(email, userType);
+
+    if (account.status === "pending_verification") {
       throw new AppError(
         "Cuenta no confirmada, verifique su correo primero para cambiar su contraseña",
         400
       );
     }
 
-    await sendEmailCodeRecoverPassword(user, code);
+    await sendEmailCodeRecoverPassword(account, code);
     await db.EmailCode.create({
       code,
-      targetId: user.id,
-      targetType: user.role,
+      targetId: account.id,
+      targetType: account.role,
     });
 
     return {
@@ -214,19 +217,19 @@ class AuthService {
   async sendEmailCodeChangeTelephone({ email, userType }) {
     const code = crypto.randomBytes(32).toString("hex");
 
-    const user = await this.findByEmail(email, userType);
-    if (user.status === "pending_verification") {
+    const account = await this.findByEmail(email, userType);
+    if (account.status === "pending_verification") {
       throw new AppError(
         "Cuenta no confirmada, verifique su correo primero para cambiar su teléfono",
         400
       );
     }
 
-    await sendEmailCodeChangeTelephone(user, code);
+    await sendEmailCodeChangeTelephone(account, code);
     await db.EmailCode.create({
       code,
-      targetId: user.id,
-      targetType: user.role,
+      targetId: account.id,
+      targetType: account.role,
     });
 
     return {
@@ -243,18 +246,18 @@ class AuthService {
       throw new AppError("Código de verificación no válido", 400);
     }
 
-    const user = await Model.findOne({ where: { id: emailCode.targetId } });
-    if (!user) {
+    const account = await Model.findOne({ where: { id: emailCode.targetId } });
+    if (!account) {
       throw new AppError("Usuario no encontrado", 404);
     }
 
-    if (user.telephone === telephone) {
+    if (account.telephone === telephone) {
       throw new AppError("El número de teléfono no puede ser el mismo", 400);
     }
 
     await db.EmailCode.destroy({ where: { id: emailCode.id } });
 
-    await Model.update({ telephone }, { where: { id: user.id } });
+    await Model.update({ telephone }, { where: { id: account.id } });
 
     return {
       message: "Teléfono cambiado con éxito",
@@ -269,13 +272,13 @@ class AuthService {
       throw new AppError("Código de verificación no válido", 400);
     }
 
-    const user = await Model.findOne({ where: { id: emailCode.targetId } });
-    if (!user) {
+    const account = await Model.findOne({ where: { id: emailCode.targetId } });
+    if (!account) {
       throw new AppError("Usuario no encontrado", 404);
     }
 
     await db.EmailCode.destroy({ where: { id: emailCode.id } });
-    const equalPassword = await comparePassword(password, user.password);
+    const equalPassword = await comparePassword(password, account.password);
 
     if (equalPassword) {
       throw new AppError(
@@ -288,12 +291,12 @@ class AuthService {
 
     await Model.update(
       { password: hashedPassword },
-      { where: { id: user.id } }
+      { where: { id: account.id } }
     );
 
     await db.UserSession.update(
       { isValid: false },
-      { where: { userId: user.id, userType } }
+      { where: { userId: account.id, userType } }
     );
 
     return {
@@ -303,11 +306,11 @@ class AuthService {
 
   async findByEmail(email, userType) {
     const { model: Model } = this.getModel(userType);
-    const user = await Model.findOne({ where: { email } });
-    if (!user) {
+    const account = await Model.findOne({ where: { email } });
+    if (!account) {
       throw new AppError("Usuario no encontrado", 404);
     }
-    return user;
+    return account;
   }
 }
 

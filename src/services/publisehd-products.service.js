@@ -3,6 +3,7 @@ const AppError = require("../utils/appError.js");
 const WalletService = require("./wallet.service.js");
 const { differenceInDays } = require("date-fns");
 const { toZonedTime } = require("date-fns-tz");
+const Decimal = require("decimal.js");
 
 class PublishedProductsService {
   constructor() {
@@ -27,29 +28,35 @@ class PublishedProductsService {
   async createPublishedProduct({ body, role, id: providerId }) {
     const { productId, publishedEndDate } = body;
 
-    const provider = await db.Providers.findOne({ where: { id: providerId } });
-    const product = await db.Product.findOne({ where: { id: productId } });
-
-    const publishedProduct = await db.PublishedProducts.findOne({
-      where: { productId },
+    const product = await db.Product.findOne({
+      where: { id: productId, providerId },
     });
 
-    if (!provider || !product) {
-      throw new AppError("Proveedor o producto no encontrado", 404);
+    if (!product) {
+      throw new AppError("No tienes permisos para publicar este producto", 403);
     }
+    const now = toZonedTime(new Date(), "America/Lima");
+    const publishedProduct = await db.PublishedProducts.findOne({
+      where: {
+        productId,
+        publishedEndDate: { [db.Sequelize.Op.gt]: now },
+      },
+    });
 
     const transaction = await db.sequelize.transaction();
 
     try {
-      if (product.id === publishedProduct?.id) {
+      if (publishedProduct) {
         throw new AppError("El producto ya estaba publicado", 400);
       }
 
-      const providerBalance = await this.walletService.getTotalBalance({
+      const providerBalanceRaw = await this.walletService.getTotalBalance({
         userId: providerId,
         userType: role,
         transaction,
       });
+
+      const providerBalance = new Decimal(providerBalanceRaw);
 
       const providerPaysDiscount = await db.ProviderDiscount.findOne({
         where: { name: "publication_price" },
@@ -57,26 +64,29 @@ class PublishedProductsService {
       });
 
       const publishStartDate = toZonedTime(new Date(), "America/Lima");
-
       const days = differenceInDays(
         new Date(publishedEndDate),
         publishStartDate
       );
 
-      let publishCost = this.publishCost; // 0
+      let publishCost = new Decimal(this.publishCost || 0);
+
       if (providerPaysDiscount) {
-        publishCost = providerPaysDiscount?.quantity * days; // 10
+        const discountPerDay = new Decimal(providerPaysDiscount.quantity || 0);
+        publishCost = discountPerDay.mul(days);
       }
 
-      if (providerBalance < publishCost) {
+      if (providerBalance.lessThan(publishCost)) {
         throw new AppError(
-          `Saldo insuficiente para publicar, tienes $${providerBalance}, necesitas $${publishCost}`,
+          `Saldo insuficiente para publicar, tienes $${providerBalance.toFixed(
+            2
+          )}, necesitas $${publishCost.toFixed(2)}`,
           400
         );
       }
 
       await this.walletService.deductBalance({
-        quantity: publishCost,
+        quantity: publishCost.toNumber(),
         id: providerId,
         description: `Descuento por publicación de ${product.productName}`,
         userType: role,
@@ -94,15 +104,18 @@ class PublishedProductsService {
       );
 
       await transaction.commit();
-      return { message: "Producto publicado con éxito" };
+      return {
+        message: "Producto publicado con éxito",
+        publishCost: publishCost.toNumber(),
+      };
     } catch (error) {
       await transaction.rollback();
       throw error;
     }
   }
 
-  async getPublishedProducts(providerId) {
-    const publishedProducts = await db.PublishedProducts.findAll({
+  async getMyPublishedProducts({ providerId, limit = 10, offset = 0 }) {
+    const { rows, count } = await db.PublishedProducts.findAndCountAll({
       where: {
         providerId,
       },
@@ -116,6 +129,11 @@ class PublishedProductsService {
               as: "productItem",
               attributes: ["id", "status"],
             },
+            {
+              model: db.ProductImages,
+              as: "images",
+              attributes: ["id", "url"],
+            },
           ],
         },
         {
@@ -123,10 +141,13 @@ class PublishedProductsService {
           as: "provider",
         },
       ],
+      limit,
+      offset,
+      order: [["createdAt", "DESC"]],
     });
 
     // Mapear y agregar campos requeridos
-    const result = publishedProducts.map((pub) => {
+    const publishedProducts = rows.map((pub) => {
       const startDate = pub.publishedStartDate;
       const endDate = pub.publishedEndDate;
       const remainingDays = differenceInDays(new Date(endDate), new Date());
@@ -137,6 +158,7 @@ class PublishedProductsService {
           productName: pub.product.productName,
           stock: pub.product.productItem.filter((p) => p.status === "published")
             .length,
+          images: pub.product.images,
         },
         publishedStartDate: startDate,
         publishedEndDate: endDate,
@@ -144,15 +166,18 @@ class PublishedProductsService {
       };
     });
 
-    return result;
+    return {
+      count,
+      publishedProducts,
+    };
   }
 
-  async getAllPublishedProducts() {
-    const publishedProducts = await db.PublishedProducts.findAll({
+  async getAllPublishedProducts({ limit = 10, offset = 0 }) {
+    const { rows, count } = await db.PublishedProducts.findAndCountAll({
       where: {
         publishedEndDate: { [db.Sequelize.Op.gt]: new Date() },
       },
-      attributes: ["id", "publishedStartDate", "publishedEndDate"],
+      attributes: ["id", "publishedStartDate", "publishedEndDate", "createdAt"],
       include: [
         {
           model: db.Product,
@@ -168,18 +193,25 @@ class PublishedProductsService {
               as: "ratings",
               attributes: ["id", "rating"],
             },
+            {
+              model: db.ProductImages,
+              as: "images",
+            },
           ],
         },
         {
           model: db.Providers,
           as: "provider",
-          attrubutes: ["id", "businessName"],
+          attributes: ["id", "businessName"],
         },
       ],
+      limit,
+      offset,
+      order: [["createdAt", "DESC"]],
     });
 
     // Mapear y agregar campos requeridos
-    const result = publishedProducts.map((pub) => {
+    const publishedProducts = rows.map((pub) => {
       return {
         id: pub.id,
         publishedStartDate: pub.publishedStartDate,
@@ -202,6 +234,7 @@ class PublishedProductsService {
               .map((r) => r.rating)
               .reduce((a, b) => a + b, 0) / pub.product.ratings.length,
         },
+        images: pub.product.images,
         provider: {
           id: pub.provider.id,
           businessName: pub.provider.businessName,
@@ -209,7 +242,10 @@ class PublishedProductsService {
       };
     });
 
-    return result;
+    return {
+      count,
+      publishedProducts,
+    };
   }
 }
 

@@ -25,14 +25,17 @@ categoryRoutes.post(
 );
 categoryRoutes.get("/", getAllCategories);
 categoryRoutes.get("/:id", validationParamId, getCategoryById);
+
 categoryRoutes.patch(
   "/:id",
+  verifySession,
   checkRole("admin"),
   validationEditCategory,
   editCategory
 );
 categoryRoutes.delete(
   "/:id",
+  verifySession,
   checkRole("admin"),
   validationParamId,
   deleteCategory

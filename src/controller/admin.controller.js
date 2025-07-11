@@ -14,57 +14,6 @@ module.exports.register = catchAsync(async (req, res) => {
   return res.status(201).json({ message: "Cuenta creado con éxito", admin });
 });
 
-module.exports.login = catchAsync(async (req, res) => {
-  const { email, password } = req.body;
-
-  const { user, token } = await authService.login({
-    email,
-    password,
-    userType: req.userType,
-    req,
-  });
-
-  res.cookie("auth_token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 1000 * 60 * 60 * 24,
-  });
-
-  return res.status(200).json(user);
-});
-
-module.exports.logout = catchAsync(async (req, res) => {
-  const { id: userId } = req.user;
-
-  const result = await authService.logout({
-    userId,
-    userType: req.userType,
-    res,
-  });
-  return res.status(200).json(result);
-});
-
-module.exports.confirmAccount = catchAsync(async (req, res) => {
-  const { code } = req.params;
-
-  const result = await authService.confirmAccount({
-    code,
-    userType: req.userType,
-  });
-  return res.status(200).json(result);
-});
-
-module.exports.sendEmailCodeRecover = catchAsync(async (req, res) => {
-  const { email } = req.body;
-
-  const result = await authService.sendEmailCodeRecover({
-    email,
-    userType: req.userType,
-  });
-  return res.status(200).json(result);
-});
-
 module.exports.changePassword = catchAsync(async (req, res) => {
   const { code } = req.params;
   const { password } = req.body;
@@ -85,6 +34,14 @@ module.exports.getAllUserTypes = catchAsync(async (req, res) => {
 
 module.exports.getAdminById = catchAsync(async (req, res) => {
   const { id } = req.params;
+
+  const admin = await adminService.getAdminById(id);
+
+  return res.status(200).json(admin);
+});
+
+module.exports.getProfile = catchAsync(async (req, res) => {
+  const { id } = req.user;
 
   const admin = await adminService.getAdminById(id);
 

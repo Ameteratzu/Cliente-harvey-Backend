@@ -15,10 +15,13 @@ const publishedPruductsRouter = require("./published-products.routes");
 const purchaseDiscountRouter = require("./purchase-discount.routes");
 const favoritesRouter = require("./favorites.routes");
 const ratingRouter = require("./rating.routes");
+const productImagesRouter = require("./product-images.routes");
+const authRouter = require("./auth.routes.js")
 
 const router = express.Router();
 
 router.use("/code-register", codeRegisterRouter);
+router.use("/auth/", authRouter)
 router.use("/users", userRoutes);
 router.use("/providers", providerRouter);
 router.use("/admins", adminRouter);
@@ -34,5 +37,6 @@ router.use("/published-products", publishedPruductsRouter);
 router.use("/purchase-discount", purchaseDiscountRouter);
 router.use("/favorites", favoritesRouter);
 router.use("/rating", ratingRouter);
+router.use("/product-images", productImagesRouter);
 
 module.exports = router;

@@ -7,28 +7,42 @@ const {
   getRatingCount,
   rateProduct,
 } = require("../controller/rating.controller");
+const {
+  validationParamId,
+  validationCreateRating,
+} = require("../middlewares/validateInputErrors");
 
 const ratingRouter = express.Router();
 
-ratingRouter.post("/", verifySession, checkRole("user"), rateProduct);
-ratingRouter.get(
-  "/average/:productId",
+ratingRouter.post(
+  "/",
   verifySession,
   checkRole("user"),
+  validationCreateRating,
+  rateProduct
+);
+
+ratingRouter.get(
+  "/average/:id",
+  verifySession,
+  checkRole("user"),
+  validationParamId,
   getAverageRatingOfProduct
 );
 
 ratingRouter.get(
-  "/my/:productId",
+  "/my/:id",
   verifySession,
   checkRole("user"),
+  validationParamId,
   getMyRating
 );
 
 ratingRouter.get(
-  "/count/:productId",
+  "/count/:id",
   verifySession,
   checkRole("user"),
+  validationParamId,
   getRatingCount
 );
 

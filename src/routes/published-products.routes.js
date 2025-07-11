@@ -6,13 +6,17 @@ const {
 } = require("../controller/published-products.controller");
 const { verifySession } = require("../middlewares/verifySession");
 const checkRole = require("../middlewares/chekRole");
+const {
+  validationCreatePublishedProduct,
+} = require("../middlewares/validateInputErrors");
 
 const publishedProductsRouter = express.Router();
 
 publishedProductsRouter.post(
   "/",
   verifySession,
-  checkRole("admin", "user", "provider"),
+  checkRole("provider"),
+  validationCreatePublishedProduct,
   createPublishedProduct
 );
 

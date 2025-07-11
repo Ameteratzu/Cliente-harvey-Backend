@@ -20,25 +20,24 @@ module.exports.createReferral = catchAsync(async (req, res) => {
 
 module.exports.getMyReferrals = catchAsync(async (req, res) => {
   const { id: userId } = req.user;
+  const { page = 1, limit = 10 } = req.query;
 
-  const referrals = await referralService.getReferrals(userId);
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
 
-  res.status(200).json({
-    message: "Referencias obtenidas exitosamente",
-    data: referrals,
-    results: referrals.length,
+  const { rows: referrals, count } = await referralService.getReferrals({
+    userId,
+    limit: parsedLimit,
+    offset,
   });
-});
-
-module.exports.getReferrals = catchAsync(async (req, res) => {
-  const { id } = req.params;
-
-  const referrals = await referralService.getReferrals(id);
 
   res.status(200).json({
     message: "Referencias obtenidas exitosamente",
-    data: referrals,
     results: referrals.length,
+    total: count,
+    totalPages: Math.ceil(count / parsedLimit),
+    referrals,
   });
 });
 

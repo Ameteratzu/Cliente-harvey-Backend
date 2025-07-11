@@ -9,25 +9,38 @@ const {
   filterPurchases,
   solveSupport,
   changeToPurchased,
-  changeToRefuned,
   getProviderSales,
   getProviderSalesById,
   getMostSoldProducts,
   acceptRenewal,
   deleteExpired,
+  approveRefund,
+  requestRefund,
 } = require("../controller/purchases.controller");
+const {
+  validationCreatePurchase,
+  validationSendSupport,
+  validationSolveSupport,
+  validationParamId,
+  validationAccepRenewal,
+  validationRequestRefund,
+} = require("../middlewares/validateInputErrors");
 
 const purchasesRouter = express.Router();
-// TODO: faltan validaciones
 
-// TODO: ENDPOINT PARA RENOVAR COMPRA, PUEDE RENOVAR VARIOS PRODUCTOS, DURACION + FECHA DE FIN Y SE LE COBRA EL PRECIO DE RENOVACION
-
-purchasesRouter.post("/", verifySession, checkRole("user"), createPurchase);
+purchasesRouter.post(
+  "/",
+  verifySession,
+  checkRole("user"),
+  validationCreatePurchase,
+  createPurchase
+);
 
 purchasesRouter.put(
   "/support/:id",
   verifySession,
   checkRole("user"),
+  validationSendSupport,
   sendPurchaseSupport
 );
 
@@ -35,6 +48,7 @@ purchasesRouter.put(
   "/solve-support/:id",
   verifySession,
   checkRole("provider"),
+  validationSolveSupport,
   solveSupport
 );
 
@@ -42,14 +56,8 @@ purchasesRouter.patch(
   "/change-to-purchased/:id",
   verifySession,
   checkRole("user"),
+  validationParamId,
   changeToPurchased
-);
-
-purchasesRouter.patch(
-  "/change-to-refunded/:id",
-  verifySession,
-  checkRole("provider"),
-  changeToRefuned
 );
 
 // FILTRAR PURCHASES POR ESTADO
@@ -72,6 +80,7 @@ purchasesRouter.get(
   "/user/:id",
   verifySession,
   checkRole("admin"),
+  validationParamId,
   getUserPurchases
 );
 
@@ -87,22 +96,16 @@ purchasesRouter.delete(
   "/delete-expired/:id",
   verifySession,
   checkRole("provider"),
+  validationParamId,
   deleteExpired
 );
 
 purchasesRouter.put(
-  "/accept-renewal/:id",
+  "/accept-renewal",
   verifySession,
-  checkRole("provider"),
+  checkRole("user"),
+  validationAccepRenewal,
   acceptRenewal
-);
-
-// HACER UN REEMBOLSO FORZADO - admin
-purchasesRouter.patch(
-  "/forced-refund/:id",
-  verifySession,
-  checkRole("admin"),
-  changeToRefuned
 );
 
 // OBTENER VENTAS DE UN PROVEEDOR - admin y provider
@@ -117,7 +120,24 @@ purchasesRouter.get(
   "/get-provider-sales/:id",
   verifySession,
   checkRole("admin"),
+  validationParamId,
   getProviderSalesById
+);
+
+purchasesRouter.put(
+  "/request-refund/:id",
+  verifySession,
+  checkRole("user"),
+  validationRequestRefund,
+  requestRefund
+);
+
+purchasesRouter.put(
+  "/approve-refund/:id",
+  verifySession,
+  checkRole("provider", "admin"),
+  validationParamId,
+  approveRefund
 );
 
 module.exports = purchasesRouter;

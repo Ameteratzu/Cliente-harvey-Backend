@@ -49,27 +49,49 @@ module.exports.filterPurchases = catchAsync(async (req, res) => {
 
 module.exports.getMyPurchases = catchAsync(async (req, res) => {
   const { id, role } = req.user;
-  const { status } = req.query;
+  const { status, page = 1, limit = 10 } = req.query;
 
-  const purchases = await purchaseService.getMyPurchases({ id, role, status });
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  const { rows: purchases, count } = await purchaseService.getMyPurchases({
+    id,
+    role,
+    status,
+    limit: parsedLimit,
+    offset,
+  });
 
   return res.status(200).json({
     message: "Compras obtenidas exitosamente",
-    data: purchases,
     results: purchases.length,
+    total: count,
+    totalPages: Math.ceil(count / parsedLimit),
+    purchases,
   });
 });
 
 module.exports.getUserPurchases = catchAsync(async (req, res) => {
   const { id: userId } = req.params;
+  const { page = 1, limit = 10 } = req.query;
 
-  const purchases = await purchaseService.getUserPurchases(userId);
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  const { rows: purchases, count } = await purchaseService.getUserPurchases({
+    userId,
+    limit: parsedLimit,
+    offset,
+  });
 
   return res.status(200).json({
     message: "Compras obtenidas exitosamente",
-    data: purchases,
     results: purchases.length,
-    userId,
+    total: count,
+    totalPages: Math.ceil(count / parsedLimit),
+    purchases,
   });
 });
 
@@ -116,41 +138,52 @@ module.exports.changeToPurchased = catchAsync(async (req, res) => {
   });
 });
 
-// CAMBIAR EL ESTADO A REFUNED - PROVIDER
-module.exports.changeToRefuned = catchAsync(async (req, res) => {
-  const { id: purchaseId } = req.params;
-
-  const result = await purchaseService.changeToRefuned(purchaseId);
-
-  return res.status(200).json({
-    message: "Compra renovada con éxito",
-    data: result,
-  });
-});
-
 // PROVIDER
 // OBTENER VENTAS DEL PROVEEDOR
 module.exports.getProviderSales = catchAsync(async (req, res) => {
   const { id: providerId } = req.user;
-  const { userId } = req.query;
+  const { userId, page = 1, limit = 10 } = req.query;
 
-  const sales = await purchaseService.getProviderSales({ providerId, userId });
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  const { rows: sales, count } = await purchaseService.getProviderSales({
+    providerId,
+    userId,
+    limit: parsedLimit,
+    offset,
+  });
 
   return res.status(200).json({
     message: "Ventas obtenidas exitosamente",
-    data: sales,
     results: sales.length,
+    total: count,
+    totalPages: Math.ceil(sales.length / parsedLimit),
+    sales,
   });
 });
 
 module.exports.getProviderSalesById = catchAsync(async (req, res) => {
   const { id: providerId } = req.params;
+  const { page = 1, limit = 10 } = req.query;
 
-  const sale = await purchaseService.getProviderSalesById(providerId);
+  const parsedLimit = parseInt(limit);
+  const parsedPage = parseInt(page);
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  const { rows: sales, count } = await purchaseService.getProviderSalesById({
+    providerId,
+    limit: parsedLimit,
+    offset,
+  });
 
   return res.status(200).json({
-    message: "Venta obtenida exitosamente",
-    data: sale,
+    message: "Ventas obtenidas exitosamente",
+    results: sales.length,
+    total: count,
+    totalPages: Math.ceil(count / parsedLimit),
+    sales,
   });
 });
 
@@ -167,11 +200,11 @@ module.exports.makeForcedRefund = catchAsync(async (req, res) => {
 
 // ACEPTAR RENOVACIONES
 module.exports.acceptRenewal = catchAsync(async (req, res) => {
-  const { id: purchaseId } = req.params;
   const { id: providerId, role: userType } = req.user;
+  const { purchaseIds } = req.body;
 
   const result = await purchaseService.acceptRenewal({
-    purchaseId,
+    purchaseIds,
     providerId,
     userType,
   });
@@ -180,6 +213,33 @@ module.exports.acceptRenewal = catchAsync(async (req, res) => {
     message: "Renovación aceptada con éxito",
     data: result,
   });
+});
+
+module.exports.requestRefund = catchAsync(async (req, res) => {
+  const { id } = req.user;
+  const { id: purchaseId } = req.params;
+  const { descriptionProblem = "" } = req.body || {};
+
+  const result = await purchaseService.requestRefund({
+    purchaseId,
+    userId: id,
+    descriptionProblem,
+  });
+
+  return res.status(200).json(result);
+});
+
+module.exports.approveRefund = catchAsync(async (req, res) => {
+  const { id, role: userType } = req.user;
+  const { id: purchaseId } = req.params;
+
+  const result = await purchaseService.approveRefund({
+    purchaseId,
+    id,
+    userType,
+  });
+
+  return res.status(200).json(result);
 });
 
 module.exports.deleteExpired = catchAsync(async (req, res) => {

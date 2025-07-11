@@ -20,8 +20,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       roleType: {
         allowNull: false,
-        // TODO: CAMBIAR A ENUM
-        type: DataTypes.STRING,
+        type: DataTypes.ENUM("admin", "provider", "user"),
         field: "role_type",
       },
       createdAt: {

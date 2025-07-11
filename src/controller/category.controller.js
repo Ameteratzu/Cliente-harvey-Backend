@@ -32,21 +32,18 @@ module.exports.createCategory = catchAsync(async (req, res) => {
 
 module.exports.getCategoryById = catchAsync(async (req, res) => {
   const { id } = req.params;
+
   const category = await categoryService.findCategoryById(id);
   if (!category) {
     return res.status(404).json({ message: "Categoría no encontrada" });
   }
+
   return res.status(200).json({ category });
 });
 
 module.exports.editCategory = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { category } = req.body;
-
-  const findCategory = await categoryService.findCategoryById(id);
-  if (!findCategory) {
-    return res.status(404).json({ message: "Categoría no encontrada" });
-  }
 
   await categoryService.editCategory(id, { category });
   return res.status(200).json({ message: "Categoría editada con éxito" });

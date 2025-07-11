@@ -6,7 +6,11 @@ const {
   editProviderDiscount,
   deleteProviderDiscount,
 } = require("../controller/provider-discount.controller");
-const { validationParamId } = require("../middlewares/validateInputErrors");
+const {
+  validationParamId,
+  validationCreateProviderDiscount,
+  validationEditProviderDiscount,
+} = require("../middlewares/validateInputErrors");
 
 const providerDiscountRouter = express.Router();
 
@@ -14,6 +18,7 @@ providerDiscountRouter.post(
   "/",
   verifySession,
   checkRole("admin"),
+  validationCreateProviderDiscount,
   createProviderDiscount
 );
 
@@ -21,6 +26,7 @@ providerDiscountRouter.put(
   "/:id",
   verifySession,
   checkRole("admin"),
+  validationEditProviderDiscount,
   editProviderDiscount
 );
 

@@ -19,6 +19,7 @@ module.exports = {
       },
       purchasingGroupCode: {
         type: Sequelize.STRING,
+        field: "purchasing_group_code",
       },
       operationDate: {
         type: Sequelize.DATE,

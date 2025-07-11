@@ -25,12 +25,6 @@ module.exports.getCart = catchAsync(async (req, res) => {
 
   const cart = await cartService.getCart({ userId });
 
-  // Agregar tiempo restante a cada item
-  // const itemsWithTimeLeft = cart.items.map((item) => ({
-  //   ...item.toJSON(),
-  //   timeLeft: item.getTimeLeft(),
-  // }));
-
   res.status(200).json({
     message: "Carrito obtenido exitosamente",
     data: { cart },
@@ -40,7 +34,7 @@ module.exports.getCart = catchAsync(async (req, res) => {
 // Remover item del carrito
 module.exports.removeFromCart = catchAsync(async (req, res) => {
   const { id: userId } = req.user;
-  const { cartItemId } = req.params;
+  const { id: cartItemId } = req.params;
 
   await cartService.removeFromCart({ userId, productInCartId: cartItemId });
 
